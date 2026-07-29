@@ -5,16 +5,29 @@
 <div class="flex h-screen flex-col bg-slate-50">
     {{-- Toast --}}
     <div
-        x-data="{ show: false, message: '' }"
-        x-on:transaction-completed.window="message = 'Transaksi ' + $event.detail.invoiceNumber + ' selesai.'; show = true; setTimeout(() => show = false, 3000)"
-        x-on:order-held.window="message = 'Pesanan ditahan untuk nanti.'; show = true; setTimeout(() => show = false, 3000)"
+        x-data="{ show: false, message: '', receiptUrl: null }"
+        x-on:transaction-completed.window="
+            message = 'Transaksi ' + $event.detail.invoiceNumber + ' selesai.';
+            receiptUrl = '/pos/receipt/' + $event.detail.transactionId;
+            show = true;
+            setTimeout(() => show = false, 8000)
+        "
+        x-on:order-held.window="message = 'Pesanan ditahan untuk nanti.'; receiptUrl = null; show = true; setTimeout(() => show = false, 3000)"
         x-show="show"
         x-transition
         style="display: none;"
-        class="fixed top-4 right-4 z-50 flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-medium text-white shadow-lg shadow-emerald-600/20"
+        class="fixed top-4 right-4 z-50 flex items-center gap-3 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-medium text-white shadow-lg shadow-emerald-600/20"
     >
-        <span>✓</span>
+        <x-icon name="check-circle" class="h-5 w-5 shrink-0" />
         <span x-text="message"></span>
+        <a
+            x-show="receiptUrl"
+            :href="receiptUrl"
+            target="_blank"
+            class="shrink-0 rounded-lg bg-white/20 px-3 py-1.5 text-xs font-semibold transition hover:bg-white/30"
+        >
+            Cetak Struk
+        </a>
     </div>
 
     {{-- Header --}}
@@ -49,7 +62,7 @@
         <section class="flex w-2/3 flex-col overflow-hidden border-r border-slate-200 bg-slate-50">
             <div class="border-b border-slate-200 bg-white p-4">
                 <div class="relative">
-                    <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">🔍</span>
+                    <x-icon name="search" class="pointer-events-none absolute inset-y-0 left-3 my-auto h-5 w-5 text-slate-400" />
                     <input
                         type="text"
                         wire:model.live.debounce.300ms="search"
@@ -93,7 +106,9 @@
                             @if ($product->image_url)
                                 <img src="{{ $product->image_url }}" alt="{{ $product->name }}" class="h-full w-full object-cover" loading="lazy">
                             @else
-                                <div class="flex h-full w-full items-center justify-center text-3xl text-slate-300">📦</div>
+                                <div class="flex h-full w-full items-center justify-center">
+                                    <x-icon name="photo" class="h-8 w-8 text-slate-300" />
+                                </div>
                             @endif
                         </div>
                         <div class="flex flex-1 flex-col items-start p-3">
@@ -107,7 +122,7 @@
                     </button>
                 @empty
                     <div class="col-span-4 flex flex-col items-center justify-center py-16 text-center">
-                        <span class="text-3xl">🛒</span>
+                        <x-icon name="cube" class="h-10 w-10 text-slate-300" />
                         <p class="mt-2 text-sm text-slate-400">Produk tidak ditemukan.</p>
                     </div>
                 @endforelse
@@ -158,7 +173,7 @@
                     </div>
                 @empty
                     <div class="flex flex-col items-center justify-center py-16 text-center">
-                        <span class="text-3xl">🧾</span>
+                        <x-icon name="receipt" class="h-10 w-10 text-slate-300" />
                         <p class="mt-2 text-sm text-slate-400">Keranjang kosong.<br>Pindai atau ketuk produk untuk menambahkannya.</p>
                     </div>
                 @endforelse
@@ -364,7 +379,9 @@
     @if ($showOpenShiftModal)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4">
             <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-                <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-2xl">💰</div>
+                <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100">
+                    <x-icon name="wallet" class="h-6 w-6 text-rose-600" />
+                </div>
                 <h2 class="mt-3 text-center text-lg font-bold text-slate-900">Buka Shift</h2>
                 <p class="mt-1 text-center text-sm text-slate-500">Masukkan modal awal di laci kasir untuk memulai.</p>
 

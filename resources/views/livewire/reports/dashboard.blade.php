@@ -28,7 +28,7 @@
                         href="{{ route('reports.export.transactions', ['from' => $from->toDateString(), 'to' => $to->toDateString()]) }}"
                         class="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-700"
                     >
-                        <span>⬇</span> Ekspor ke Excel
+                        <x-icon name="download" class="h-4 w-4" /> Ekspor ke Excel
                     </a>
                 </div>
             </div>
@@ -37,28 +37,36 @@
             <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
                     <div class="flex items-center gap-2 text-sm text-slate-500">
-                        <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-100 text-sm">💵</span>
+                        <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-100">
+                            <x-icon name="currency" class="h-4 w-4 text-rose-600" />
+                        </span>
                         Pendapatan
                     </div>
                     <p class="mt-2 text-2xl font-bold text-slate-900">{{ $rp($this->summary['revenue']) }}</p>
                 </div>
                 <div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
                     <div class="flex items-center gap-2 text-sm text-slate-500">
-                        <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-sm">📈</span>
+                        <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100">
+                            <x-icon name="trending-up" class="h-4 w-4 text-emerald-600" />
+                        </span>
                         Laba Kotor
                     </div>
                     <p class="mt-2 text-2xl font-bold text-emerald-600">{{ $rp($this->summary['grossProfit']) }}</p>
                 </div>
                 <div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
                     <div class="flex items-center gap-2 text-sm text-slate-500">
-                        <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-100 text-sm">🧾</span>
+                        <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-100">
+                            <x-icon name="receipt" class="h-4 w-4 text-sky-600" />
+                        </span>
                         Transaksi
                     </div>
                     <p class="mt-2 text-2xl font-bold text-slate-900">{{ $this->summary['transactionCount'] }}</p>
                 </div>
                 <div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
                     <div class="flex items-center gap-2 text-sm text-slate-500">
-                        <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-sm">⚖️</span>
+                        <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100">
+                            <x-icon name="scale" class="h-4 w-4 text-amber-600" />
+                        </span>
                         Rata-rata Transaksi
                     </div>
                     <p class="mt-2 text-2xl font-bold text-slate-900">{{ $rp($this->summary['averageOrderValue']) }}</p>
@@ -81,7 +89,7 @@
                             </div>
                         @empty
                             <div class="flex flex-col items-center justify-center py-12 text-center">
-                                <span class="text-3xl">📊</span>
+                                <x-icon name="chart-bar" class="h-10 w-10 text-slate-300" />
                                 <p class="mt-2 text-sm text-slate-400">Belum ada penjualan lunas pada periode ini.</p>
                             </div>
                         @endforelse
@@ -101,7 +109,7 @@
                             </div>
                         @empty
                             <div class="flex flex-col items-center justify-center py-12 text-center">
-                                <span class="text-3xl">✅</span>
+                                <x-icon name="check-circle" class="h-10 w-10 text-emerald-300" />
                                 <p class="mt-2 text-sm text-slate-400">Semua stok dalam kondisi aman.</p>
                             </div>
                         @endforelse

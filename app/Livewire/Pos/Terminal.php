@@ -334,7 +334,7 @@ class Terminal extends Component
             $this->addError('checkout', 'Transaksi tercatat, tapi kode QR gagal dibuat. Periksa payment gateway atau coba bayar tunai.');
         }
 
-        $this->dispatch('transaction-completed', invoiceNumber: $transaction->invoice_number);
+        $this->dispatch('transaction-completed', invoiceNumber: $transaction->invoice_number, transactionId: $transaction->id);
     }
 
     /**
@@ -356,11 +356,12 @@ class Terminal extends Component
         }
 
         $invoiceNumber = $this->qrisInvoiceNumber;
+        $transactionId = $this->qrisTransactionId;
 
         $this->showQrisModal = false;
         $this->reset(['qrisUrl', 'qrisInvoiceNumber', 'qrisTransactionId']);
 
-        $this->dispatch('transaction-completed', invoiceNumber: $invoiceNumber);
+        $this->dispatch('transaction-completed', invoiceNumber: $invoiceNumber, transactionId: $transactionId);
     }
 
     public function holdOrder(CheckoutService $service): void

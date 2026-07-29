@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Contracts\WhatsAppGatewayInterface;
 use App\Enums\PaymentStatus;
+use App\Models\Setting;
 use App\Models\Transaction;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -68,8 +69,10 @@ class SendWhatsAppInvoiceJob implements ShouldQueue
 
     private function buildMessage(Transaction $transaction): string
     {
+        $storeName = Setting::get('store_name') ?: 'POS Kasir';
+
         $lines = [
-            '*POS Kasir — Invoice*',
+            "*{$storeName} — Invoice*",
             $transaction->invoice_number,
             $transaction->created_at->format('d M Y, H:i'),
             '',
@@ -97,13 +100,21 @@ class SendWhatsAppInvoiceJob implements ShouldQueue
 
         if ($transaction->payment_status === PaymentStatus::PAID) {
             $lines[] = 'Status: *LUNAS* ✅';
-            $lines[] = 'Terima kasih sudah berbelanja dengan kami!';
+            $lines[] = Setting::get('receipt_footer') ?: 'Terima kasih sudah berbelanja dengan kami!';
         } elseif ($transaction->qris_url) {
             $lines[] = 'Status: *Menunggu Pembayaran*';
             $lines[] = 'Pindai kode QR di atas dengan aplikasi pendukung QRIS (GoPay, OVO, Dana, ShopeePay, m-banking) untuk membayar.';
         } else {
             $lines[] = 'Status: *Menunggu Pembayaran*';
             $lines[] = "Silakan selesaikan pembayaran di kasir dengan menyebutkan nomor invoice {$transaction->invoice_number}.";
+        }
+
+        $storeAddress = Setting::get('store_address');
+        $storePhone = Setting::get('store_phone');
+
+        if ($storeAddress || $storePhone) {
+            $lines[] = '';
+            $lines[] = trim("{$storeName}".($storeAddress ? " — {$storeAddress}" : '').($storePhone ? " — {$storePhone}" : ''));
         }
 
         return implode("\n", $lines);

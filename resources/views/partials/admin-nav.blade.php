@@ -14,9 +14,7 @@
                 class="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
             >
                 Admin
-                <svg class="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
+                <x-icon name="chevron-down" class="h-3.5 w-3.5 text-slate-400" />
             </button>
             <div
                 x-show="open"
@@ -24,21 +22,21 @@
                 x-transition.origin.top.right
                 class="absolute right-0 z-20 mt-1 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
             >
-                <a href="{{ route('reports.dashboard') }}" wire:navigate class="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-700">
-                    <span>📊</span> Laporan
+                <a href="{{ route('reports.dashboard') }}" wire:navigate class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-700">
+                    <x-icon name="chart-bar" class="h-4 w-4 text-slate-400" /> Laporan
                 </a>
-                <a href="{{ route('admin.products') }}" wire:navigate class="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-700">
-                    <span>📦</span> Produk
+                <a href="{{ route('admin.products') }}" wire:navigate class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-700">
+                    <x-icon name="cube" class="h-4 w-4 text-slate-400" /> Produk
                 </a>
-                <a href="{{ route('admin.categories') }}" wire:navigate class="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-700">
-                    <span>🏷️</span> Kategori
+                <a href="{{ route('admin.categories') }}" wire:navigate class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-700">
+                    <x-icon name="tag" class="h-4 w-4 text-slate-400" /> Kategori
                 </a>
-                <a href="{{ route('admin.users') }}" wire:navigate class="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-700">
-                    <span>👥</span> Pengguna
+                <a href="{{ route('admin.users') }}" wire:navigate class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-700">
+                    <x-icon name="users" class="h-4 w-4 text-slate-400" /> Pengguna
                 </a>
                 @if (Auth::user()->isSuperadmin())
-                    <a href="{{ route('admin.settings') }}" wire:navigate class="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-700">
-                        <span>⚙️</span> Pengaturan
+                    <a href="{{ route('admin.settings') }}" wire:navigate class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-700">
+                        <x-icon name="cog" class="h-4 w-4 text-slate-400" /> Pengaturan
                     </a>
                 @endif
             </div>
@@ -47,6 +45,9 @@
 
     <a href="{{ route('pos.terminal') }}" wire:navigate class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">
         Kasir
+    </a>
+    <a href="{{ route('transactions.index') }}" wire:navigate class="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">
+        <x-icon name="receipt" class="h-4 w-4 text-slate-400" /> Riwayat
     </a>
 
     <div class="mx-1 h-6 w-px bg-slate-200"></div>
@@ -58,7 +59,7 @@
         <span class="hidden text-sm font-medium text-slate-700 sm:inline">{{ Auth::user()->name }}</span>
     </div>
 
-    <button wire:click="logout" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700">
-        Keluar
+    <button wire:click="logout" class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700">
+        <x-icon name="logout" class="h-4 w-4" /> Keluar
     </button>
 </div>

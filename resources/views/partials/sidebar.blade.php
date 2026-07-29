@@ -17,14 +17,21 @@
             wire:navigate
             class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
         >
-            <span class="w-5 text-center">🛒</span> Kasir
+            <x-icon name="cart" class="h-5 w-5 text-slate-400" /> Kasir
+        </a>
+        <a
+            href="{{ route('transactions.index') }}"
+            wire:navigate
+            class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition {{ request()->routeIs('transactions.index') ? 'bg-rose-50 text-rose-700' : 'text-slate-600 hover:bg-slate-100' }}"
+        >
+            <x-icon name="receipt" class="h-5 w-5 {{ request()->routeIs('transactions.index') ? 'text-rose-600' : 'text-slate-400' }}" /> Riwayat Transaksi
         </a>
         <a
             href="{{ route('reports.dashboard') }}"
             wire:navigate
             class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition {{ request()->routeIs('reports.*') ? 'bg-rose-50 text-rose-700' : 'text-slate-600 hover:bg-slate-100' }}"
         >
-            <span class="w-5 text-center">📊</span> Laporan
+            <x-icon name="chart-bar" class="h-5 w-5 {{ request()->routeIs('reports.*') ? 'text-rose-600' : 'text-slate-400' }}" /> Laporan
         </a>
 
         <p class="px-3 pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">Manajemen</p>
@@ -34,21 +41,21 @@
             wire:navigate
             class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition {{ request()->routeIs('admin.products') ? 'bg-rose-50 text-rose-700' : 'text-slate-600 hover:bg-slate-100' }}"
         >
-            <span class="w-5 text-center">📦</span> Produk
+            <x-icon name="cube" class="h-5 w-5 {{ request()->routeIs('admin.products') ? 'text-rose-600' : 'text-slate-400' }}" /> Produk
         </a>
         <a
             href="{{ route('admin.categories') }}"
             wire:navigate
             class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition {{ request()->routeIs('admin.categories') ? 'bg-rose-50 text-rose-700' : 'text-slate-600 hover:bg-slate-100' }}"
         >
-            <span class="w-5 text-center">🏷️</span> Kategori
+            <x-icon name="tag" class="h-5 w-5 {{ request()->routeIs('admin.categories') ? 'text-rose-600' : 'text-slate-400' }}" /> Kategori
         </a>
         <a
             href="{{ route('admin.users') }}"
             wire:navigate
             class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition {{ request()->routeIs('admin.users') ? 'bg-rose-50 text-rose-700' : 'text-slate-600 hover:bg-slate-100' }}"
         >
-            <span class="w-5 text-center">👥</span> Pengguna
+            <x-icon name="users" class="h-5 w-5 {{ request()->routeIs('admin.users') ? 'text-rose-600' : 'text-slate-400' }}" /> Pengguna
         </a>
         @if (Auth::user()->isSuperadmin())
             <a
@@ -56,7 +63,7 @@
                 wire:navigate
                 class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition {{ request()->routeIs('admin.settings') ? 'bg-rose-50 text-rose-700' : 'text-slate-600 hover:bg-slate-100' }}"
             >
-                <span class="w-5 text-center">⚙️</span> Pengaturan
+                <x-icon name="cog" class="h-5 w-5 {{ request()->routeIs('admin.settings') ? 'text-rose-600' : 'text-slate-400' }}" /> Pengaturan
             </a>
         @endif
     </nav>
@@ -75,7 +82,7 @@
             wire:click="logout"
             class="mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
         >
-            <span class="w-5 text-center">🚪</span> Keluar
+            <x-icon name="logout" class="h-5 w-5 text-slate-400" /> Keluar
         </button>
     </div>
 </aside>

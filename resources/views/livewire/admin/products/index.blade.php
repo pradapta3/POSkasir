@@ -50,7 +50,9 @@
                                         @if ($product->image_url)
                                             <img src="{{ $product->image_url }}" alt="{{ $product->name }}" class="h-full w-full object-cover">
                                         @else
-                                            <div class="flex h-full w-full items-center justify-center text-sm text-slate-300">📦</div>
+                                            <div class="flex h-full w-full items-center justify-center">
+                                                <x-icon name="photo" class="h-5 w-5 text-slate-300" />
+                                            </div>
                                         @endif
                                     </div>
                                     <div>
@@ -168,7 +170,9 @@
                                 @elseif ($editingImageUrl)
                                     <img src="{{ $editingImageUrl }}" alt="Gambar saat ini" class="h-full w-full object-cover">
                                 @else
-                                    <div class="flex h-full w-full items-center justify-center text-2xl text-slate-300">📦</div>
+                                    <div class="flex h-full w-full items-center justify-center">
+                                        <x-icon name="photo" class="h-6 w-6 text-slate-300" />
+                                    </div>
                                 @endif
                             </div>
                             <input type="file" wire:model="image" accept="image/*" class="w-full text-sm">

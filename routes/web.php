@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Pos\ReceiptController;
 use App\Http\Controllers\Reports\ExportController;
 use App\Http\Controllers\Webhooks\MidtransWebhookController;
 use App\Livewire\Admin\Categories\Index as CategoriesIndex;
@@ -9,6 +10,7 @@ use App\Livewire\Admin\Users\Index as UsersIndex;
 use App\Livewire\Auth\Login;
 use App\Livewire\Pos\Terminal;
 use App\Livewire\Reports\Dashboard;
+use App\Livewire\Transactions\Index as TransactionsIndex;
 use Illuminate\Support\Facades\Route;
 
 // Merge this group into your project's existing routes/web.php.
@@ -20,6 +22,10 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
     Route::get('/pos', Terminal::class)->name('pos.terminal');
+    // Open to any authenticated role (not just Manager/Superadmin) — a
+    // Cashier needs to print/reprint the receipt for a sale they just rang up.
+    Route::get('/pos/receipt/{transaction}', ReceiptController::class)->name('pos.receipt');
+    Route::get('/riwayat', TransactionsIndex::class)->name('transactions.index');
 
     // Manager/Superadmin only — requires the 'role' middleware alias
     // registered in bootstrap/app.php; see SETUP.md.
