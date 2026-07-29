@@ -1,0 +1,55 @@
+<?php
+
+return [
+    'required' => 'Kolom :attribute wajib diisi.',
+    'email' => 'Kolom :attribute harus berupa alamat email yang valid.',
+    'string' => 'Kolom :attribute harus berupa teks.',
+    'integer' => 'Kolom :attribute harus berupa angka bulat.',
+    'numeric' => 'Kolom :attribute harus berupa angka.',
+    'boolean' => 'Kolom :attribute harus bernilai benar atau salah.',
+    'image' => 'Kolom :attribute harus berupa gambar.',
+    'confirmed' => 'Konfirmasi :attribute tidak cocok.',
+
+    'min' => [
+        'numeric' => 'Kolom :attribute minimal :min.',
+        'string' => 'Kolom :attribute minimal :min karakter.',
+    ],
+    'max' => [
+        'numeric' => 'Kolom :attribute maksimal :max.',
+        'string' => 'Kolom :attribute maksimal :max karakter.',
+        'file' => 'Ukuran :attribute maksimal :max kilobyte.',
+    ],
+    'gte' => [
+        'numeric' => 'Kolom :attribute harus lebih besar atau sama dengan :value.',
+    ],
+    'not_in' => 'Kolom :attribute yang dipilih tidak valid.',
+    'in' => 'Kolom :attribute yang dipilih tidak valid.',
+    'exists' => 'Kolom :attribute yang dipilih tidak valid.',
+    'unique' => ':attribute ini sudah digunakan.',
+
+    'attributes' => [
+        'email' => 'email',
+        'password' => 'kata sandi',
+        'passwordConfirmation' => 'konfirmasi kata sandi',
+        'name' => 'nama',
+        'phone' => 'nomor telepon',
+        'description' => 'deskripsi',
+        'categoryId' => 'kategori',
+        'roleId' => 'peran',
+        'sku' => 'SKU',
+        'barcode' => 'barcode',
+        'unit' => 'satuan',
+        'costPrice' => 'harga modal',
+        'sellingPrice' => 'harga jual',
+        'initialStock' => 'stok awal',
+        'lowStockThreshold' => 'batas stok menipis',
+        'image' => 'gambar',
+        'stockDelta' => 'jumlah penyesuaian',
+        'stockNotes' => 'catatan',
+        'startingCash' => 'modal awal',
+        'actualCash' => 'kas aktual',
+        'amountPaid' => 'jumlah dibayar',
+        'paymentMethod' => 'metode pembayaran',
+        'customerPhone' => 'nomor telepon pelanggan',
+    ],
+];
