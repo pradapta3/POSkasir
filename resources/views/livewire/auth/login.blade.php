@@ -55,7 +55,10 @@
         </button>
     </form>
 
-    <p class="mt-6 text-center text-xs text-slate-400">
-        Lupa kata sandi? Hubungi Superadmin toko kamu.
+    <p class="mt-4 text-center text-xs text-slate-400">
+        <a href="{{ route('password.request') }}" wire:navigate class="font-medium text-rose-600 hover:underline">Lupa kata sandi?</a>
+    </p>
+    <p class="mt-2 text-center text-xs text-slate-400">
+        Belum punya toko? <a href="{{ route('register') }}" wire:navigate class="font-medium text-rose-600 hover:underline">Daftar toko baru</a>
     </p>
 </div>

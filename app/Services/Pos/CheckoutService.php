@@ -19,7 +19,9 @@ use RuntimeException;
 /**
  * All database-touching POS operations (checkout, hold). Kept separate from
  * the Livewire\Pos\Terminal component so the component stays a thin
- * presentation layer and this logic stays independently testable.
+ * presentation layer and this logic stays independently testable. The
+ * outlet a sale belongs to is always taken from the cashier's Shift (a
+ * shift is opened at one specific outlet), never passed separately.
  */
 class CheckoutService
 {
@@ -76,9 +78,10 @@ class CheckoutService
 
             $transaction = $resumeTransactionId
                 ? Transaction::where('status', TransactionStatus::HELD)->lockForUpdate()->findOrFail($resumeTransactionId)
-                : new Transaction(['invoice_number' => $this->nextInvoiceNumber()]);
+                : new Transaction(['invoice_number' => $this->nextInvoiceNumber($shift->outlet_id)]);
 
             $transaction->fill([
+                'outlet_id' => $shift->outlet_id,
                 'user_id' => $cashier->id,
                 'shift_id' => $shift->id,
                 'customer_id' => $customer?->id,
@@ -116,6 +119,7 @@ class CheckoutService
 
                 $this->stock->adjust(
                     productId: $line['product_id'],
+                    outletId: $shift->outlet_id,
                     delta: -$line['quantity'],
                     type: StockMovementType::OUT,
                     actor: $cashier,
@@ -152,7 +156,8 @@ class CheckoutService
             $totals = $this->calculator->totals($cart, null, 0, 0);
 
             $transaction = Transaction::create([
-                'invoice_number' => $this->nextInvoiceNumber(),
+                'outlet_id' => $shift->outlet_id,
+                'invoice_number' => $this->nextInvoiceNumber($shift->outlet_id),
                 'user_id' => $cashier->id,
                 'shift_id' => $shift->id,
                 'subtotal' => $totals['subtotal'],
@@ -186,6 +191,9 @@ class CheckoutService
             return null;
         }
 
+        // Company-scoped automatically (Customer uses BelongsToCompany) —
+        // this can never match or leak into another company's customer
+        // record even if the phone number happens to coincide.
         return Customer::firstOrCreate(
             ['phone' => $phone],
             ['name' => $name ?: $phone],
@@ -193,18 +201,21 @@ class CheckoutService
     }
 
     /**
-     * Sequential per-day invoice number: INV-YYYYMMDD-0001.
+     * Sequential per-outlet invoice number: INV-YYYYMMDD-0001. Scoped to
+     * outlet (matching the unique constraint on transactions), so two
+     * outlets under the same company can both have their own "0001" today.
      *
      * lockForUpdate() here only protects against races within this process's
      * surrounding DB::transaction(); at very high concurrency (many terminals
      * writing the same millisecond) a dedicated atomic counter table would be
-     * more robust. Fine for typical single/few-terminal store usage.
+     * more robust. Fine for typical single/few-terminal-per-outlet usage.
      */
-    private function nextInvoiceNumber(): string
+    private function nextInvoiceNumber(int $outletId): string
     {
         $prefix = 'INV-'.now()->format('Ymd').'-';
 
         $lastNumber = Transaction::withTrashed()
+            ->where('outlet_id', $outletId)
             ->where('invoice_number', 'like', $prefix.'%')
             ->lockForUpdate()
             ->orderByDesc('invoice_number')

@@ -5,7 +5,9 @@ namespace App\Livewire\Admin\Products;
 use App\Enums\StockMovementType;
 use App\Livewire\Actions\Logout;
 use App\Models\Category;
+use App\Models\Outlet;
 use App\Models\Product;
+use App\Models\ProductStock;
 use App\Services\Inventory\StockAdjustmentService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -64,6 +66,8 @@ class Index extends Component
 
     public ?string $stockProductName = null;
 
+    public ?int $stockOutletId = null;
+
     public int $stockDelta = 0;
 
     public string $stockNotes = '';
@@ -84,15 +88,36 @@ class Index extends Component
         return Category::query()->orderBy('name')->get();
     }
 
+    /** Every outlet belonging to the logged-in manager's company. */
+    #[Computed]
+    public function outlets(): Collection
+    {
+        return Outlet::where('company_id', Auth::user()->company_id)->orderBy('name')->get();
+    }
+
     #[Computed]
     public function products(): LengthAwarePaginator
     {
         return Product::query()
-            ->with('category')
+            ->with(['category', 'productStocks'])
             ->when($this->search, fn ($q) => $q->search($this->search))
             ->when($this->categoryFilter, fn ($q) => $q->where('category_id', $this->categoryFilter))
             ->orderBy('name')
             ->paginate(15);
+    }
+
+    /** Per-outlet stock rows for whichever product the stock modal is open for. */
+    #[Computed]
+    public function stockRows(): Collection
+    {
+        if (! $this->stockProductId) {
+            return collect();
+        }
+
+        return ProductStock::where('product_id', $this->stockProductId)
+            ->with('outlet')
+            ->get()
+            ->keyBy('outlet_id');
     }
 
     public function create(): void
@@ -114,7 +139,7 @@ class Index extends Component
         $this->unit = $product->unit;
         $this->costPrice = (float) $product->cost_price;
         $this->sellingPrice = (float) $product->selling_price;
-        $this->lowStockThreshold = $product->low_stock_threshold;
+        $this->lowStockThreshold = $product->productStocks->first()?->low_stock_threshold ?? 5;
         $this->isActive = $product->is_active;
         $this->image = null;
         $this->editingImageUrl = $product->image_url;
@@ -125,11 +150,20 @@ class Index extends Component
 
     public function save(StockAdjustmentService $stock): void
     {
+        $companyId = Auth::user()->company_id;
+
         $rules = [
-            'categoryId' => 'nullable|exists:categories,id',
+            // exists: queries the table directly and does not see Eloquent
+            // global scopes, same issue as Rule::unique() below — without
+            // the company_id filter this would accept another company's
+            // category id.
+            'categoryId' => ['nullable', Rule::exists('categories', 'id')->where('company_id', $companyId)],
             'name' => 'required|string|max:255',
-            'sku' => ['required', 'string', 'max:100', Rule::unique('products', 'sku')->ignore($this->editingId)],
-            'barcode' => ['nullable', 'string', 'max:100', Rule::unique('products', 'barcode')->ignore($this->editingId)],
+            // Rule::unique() queries the table directly and does not see
+            // Eloquent global scopes — company_id must be added explicitly
+            // or this would reject a SKU that's only taken in another company.
+            'sku' => ['required', 'string', 'max:100', Rule::unique('products', 'sku')->where('company_id', $companyId)->ignore($this->editingId)],
+            'barcode' => ['nullable', 'string', 'max:100', Rule::unique('products', 'barcode')->where('company_id', $companyId)->ignore($this->editingId)],
             'description' => 'nullable|string',
             'unit' => 'required|string|max:20',
             'costPrice' => 'required|numeric|min:0',
@@ -155,24 +189,40 @@ class Index extends Component
             'unit' => $this->unit,
             'cost_price' => $this->costPrice,
             'selling_price' => $this->sellingPrice,
-            'low_stock_threshold' => $this->lowStockThreshold,
             'is_active' => $this->isActive,
         ];
 
         if ($this->editingId) {
             $product = Product::findOrFail($this->editingId);
             $product->update($attributes + ['image_path' => $imagePath ?? $product->image_path]);
-        } else {
-            $product = Product::create($attributes + ['stock_quantity' => 0, 'image_path' => $imagePath]);
 
-            if ($this->initialStock > 0) {
-                $stock->adjust(
-                    productId: $product->id,
-                    delta: $this->initialStock,
-                    type: StockMovementType::IN,
-                    actor: Auth::user(),
-                    notes: 'Stok awal saat produk dibuat.',
-                );
+            // One threshold field in the form, applied uniformly across
+            // every outlet's stock row for this product.
+            ProductStock::where('product_id', $product->id)->update(['low_stock_threshold' => $this->lowStockThreshold]);
+        } else {
+            $product = Product::create($attributes + ['image_path' => $imagePath]);
+
+            // A new product starts stocked at every outlet (0, or the
+            // given initial quantity applied the same everywhere) — stock
+            // can be corrected per outlet afterward via "Adjust Stock".
+            foreach ($this->outlets as $outlet) {
+                ProductStock::create([
+                    'product_id' => $product->id,
+                    'outlet_id' => $outlet->id,
+                    'quantity' => 0,
+                    'low_stock_threshold' => $this->lowStockThreshold,
+                ]);
+
+                if ($this->initialStock > 0) {
+                    $stock->adjust(
+                        productId: $product->id,
+                        outletId: $outlet->id,
+                        delta: $this->initialStock,
+                        type: StockMovementType::IN,
+                        actor: Auth::user(),
+                        notes: 'Stok awal saat produk dibuat.',
+                    );
+                }
             }
         }
 
@@ -193,6 +243,7 @@ class Index extends Component
 
         $this->stockProductId = $product->id;
         $this->stockProductName = $product->name;
+        $this->stockOutletId = $this->outlets->first()?->id;
         $this->stockDelta = 0;
         $this->stockNotes = '';
         $this->resetValidation();
@@ -202,20 +253,24 @@ class Index extends Component
     public function adjustStock(StockAdjustmentService $stock): void
     {
         $this->validate([
+            'stockOutletId' => ['required', Rule::exists('outlets', 'id')->where('company_id', Auth::user()->company_id)],
             'stockDelta' => 'required|integer|not_in:0',
             'stockNotes' => 'nullable|string|max:255',
         ]);
 
-        $product = Product::findOrFail($this->stockProductId);
+        $currentQuantity = ProductStock::where('product_id', $this->stockProductId)
+            ->where('outlet_id', $this->stockOutletId)
+            ->value('quantity') ?? 0;
 
-        if ($product->stock_quantity + $this->stockDelta < 0) {
+        if ($currentQuantity + $this->stockDelta < 0) {
             $this->addError('stockDelta', 'Penyesuaian ini akan membuat stok menjadi negatif.');
 
             return;
         }
 
         $stock->adjust(
-            productId: $product->id,
+            productId: $this->stockProductId,
+            outletId: $this->stockOutletId,
             delta: $this->stockDelta,
             type: StockMovementType::ADJUSTMENT,
             actor: Auth::user(),

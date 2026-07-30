@@ -5,6 +5,7 @@ namespace App\Livewire\Reports;
 use App\Livewire\Actions\Logout;
 use App\Services\Reports\SalesReportService;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -35,7 +36,7 @@ class Dashboard extends Component
     {
         [$from, $to] = $this->period;
 
-        return app(SalesReportService::class)->summary($from, $to);
+        return app(SalesReportService::class)->summary(Auth::user()->company_id, $from, $to);
     }
 
     #[Computed]
@@ -43,7 +44,7 @@ class Dashboard extends Component
     {
         [$from, $to] = $this->period;
 
-        return app(SalesReportService::class)->dailySales($from, $to);
+        return app(SalesReportService::class)->dailySales(Auth::user()->company_id, $from, $to);
     }
 
     #[Computed]
@@ -51,13 +52,13 @@ class Dashboard extends Component
     {
         [$from, $to] = $this->period;
 
-        return app(SalesReportService::class)->topProducts($from, $to);
+        return app(SalesReportService::class)->topProducts(Auth::user()->company_id, $from, $to);
     }
 
     #[Computed]
     public function lowStockProducts(): Collection
     {
-        return app(SalesReportService::class)->lowStockProducts();
+        return app(SalesReportService::class)->lowStockProducts(Auth::user()->company_id);
     }
 
     public function logout(Logout $logout): void

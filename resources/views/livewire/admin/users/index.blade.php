@@ -21,6 +21,7 @@
                     <tr>
                         <th class="px-4 py-3 font-medium">Nama</th>
                         <th class="px-4 py-3 font-medium">Peran</th>
+                        <th class="px-4 py-3 font-medium">Outlet</th>
                         <th class="px-4 py-3 font-medium">Kontak</th>
                         <th class="px-4 py-3 font-medium">Status</th>
                         <th class="px-4 py-3 font-medium"></th>
@@ -36,6 +37,7 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-slate-600">{{ $user->role?->name ?? '-' }}</td>
+                            <td class="px-4 py-3 text-slate-600">{{ $user->outlet?->name ?? 'Semua outlet' }}</td>
                             <td class="px-4 py-3 text-slate-600">
                                 <p>{{ $user->email }}</p>
                                 @if ($user->phone)
@@ -60,7 +62,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">Pengguna tidak ditemukan.</td></tr>
+                        <tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">Pengguna tidak ditemukan.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -98,6 +100,17 @@
                             @endforeach
                         </select>
                         @error('roleId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-slate-600">Outlet</label>
+                        <select wire:model="outletId" class="mt-1 w-full rounded-lg border-slate-300 focus:border-rose-500 focus:ring-rose-500">
+                            <option value="">Semua outlet (Manajer/Superadmin)</option>
+                            @foreach ($this->outlets as $outlet)
+                                <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1 text-xs text-slate-400">Kasir sebaiknya dipasangkan ke satu outlet spesifik.</p>
+                        @error('outletId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="text-sm font-medium text-slate-600">

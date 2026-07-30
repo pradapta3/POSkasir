@@ -66,11 +66,18 @@
                             <td class="px-4 py-3 text-slate-600">{{ $product->category?->name ?? '-' }}</td>
                             <td class="px-4 py-3 text-slate-600">{{ $rp($product->cost_price) }} / {{ $rp($product->selling_price) }}</td>
                             <td class="px-4 py-3">
+                                @php
+                                    $totalStock = $product->productStocks->sum('quantity');
+                                    $anyLow = $product->productStocks->contains(fn ($s) => $s->isLowStock());
+                                @endphp
                                 <button
                                     wire:click="openStockModal({{ $product->id }})"
-                                    class="rounded-full px-2 py-0.5 text-xs font-semibold hover:opacity-80 {{ $product->isLowStock() ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600' }}"
+                                    class="rounded-full px-2 py-0.5 text-xs font-semibold hover:opacity-80 {{ $anyLow ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600' }}"
                                 >
-                                    {{ $product->stock_quantity }} {{ $product->unit }}
+                                    {{ $totalStock }} {{ $product->unit }}
+                                    @if ($this->outlets->count() > 1)
+                                        <span class="text-[10px] opacity-70">({{ $product->productStocks->count() }} outlet)</span>
+                                    @endif
                                 </button>
                             </td>
                             <td class="px-4 py-3">
@@ -207,11 +214,25 @@
             <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
                 <h2 class="text-lg font-bold text-slate-900">Sesuaikan Stok</h2>
                 <p class="mt-1 text-sm text-slate-500">{{ $stockProductName }}</p>
-                <p class="mt-2 text-xs text-slate-400">Masukkan angka positif untuk menambah stok, negatif untuk mengurangi.</p>
+
+                @if ($this->outlets->count() > 1)
+                    <label class="mt-4 block text-sm font-medium text-slate-600">Outlet</label>
+                    <select wire:model.live="stockOutletId" class="mt-1 w-full rounded-lg border-slate-300 focus:border-rose-500 focus:ring-rose-500">
+                        @foreach ($this->outlets as $outlet)
+                            <option value="{{ $outlet->id }}">{{ $outlet->name }}</option>
+                        @endforeach
+                    </select>
+                @endif
+
+                <p class="mt-3 text-sm text-slate-500">
+                    Stok saat ini: <span class="font-semibold text-slate-800">{{ $this->stockRows->get($stockOutletId)?->quantity ?? 0 }}</span>
+                </p>
+                <p class="mt-1 text-xs text-slate-400">Masukkan angka positif untuk menambah stok, negatif untuk mengurangi.</p>
 
                 <label class="mt-4 block text-sm font-medium text-slate-600">Jumlah Perubahan</label>
                 <input type="number" wire:model="stockDelta" class="mt-1 w-full rounded-lg border-slate-300 text-lg focus:border-rose-500 focus:ring-rose-500">
                 @error('stockDelta') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                @error('stockOutletId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
 
                 <label class="mt-3 block text-sm font-medium text-slate-600">Alasan (opsional)</label>
                 <input type="text" wire:model="stockNotes" placeholder="mis. Restock dari supplier, barang rusak" class="mt-1 w-full rounded-lg border-slate-300 focus:border-rose-500 focus:ring-rose-500">

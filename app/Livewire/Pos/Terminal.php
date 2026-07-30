@@ -8,6 +8,7 @@ use App\Enums\ShiftStatus;
 use App\Enums\TransactionStatus;
 use App\Livewire\Actions\Logout;
 use App\Models\Category;
+use App\Models\Outlet;
 use App\Models\Product;
 use App\Models\Setting;
 use App\Models\Shift;
@@ -79,6 +80,26 @@ class Terminal extends Component
         return Auth::user()->activeShift();
     }
 
+    /**
+     * A Cashier is pinned to one outlet (users.outlet_id); a Manager or
+     * Superadmin has outlet_id = null (every outlet in the company) and,
+     * until the outlet switcher lands, defaults to the company's first one.
+     */
+    #[Computed]
+    public function currentOutlet(): ?Outlet
+    {
+        $user = Auth::user();
+
+        if ($user->outlet_id) {
+            return $user->outlet;
+        }
+
+        return Outlet::where('company_id', $user->company_id)
+            ->where('is_active', true)
+            ->orderBy('id')
+            ->first();
+    }
+
     #[Computed]
     public function categories(): Collection
     {
@@ -88,8 +109,11 @@ class Terminal extends Component
     #[Computed]
     public function productList(): Collection
     {
+        $outletId = $this->currentOutlet?->id;
+
         return Product::query()
             ->active()
+            ->with(['productStocks' => fn ($q) => $q->where('outlet_id', $outletId)])
             ->when($this->activeCategoryId, fn ($q) => $q->where('category_id', $this->activeCategoryId))
             ->when(mb_strlen($this->search) >= 1, fn ($q) => $q->search($this->search))
             ->orderBy('name')
@@ -102,6 +126,7 @@ class Terminal extends Component
     {
         return Transaction::query()
             ->where('status', TransactionStatus::HELD)
+            ->where('outlet_id', $this->currentOutlet?->id)
             ->withCount('items')
             ->latest('held_at')
             ->get();
@@ -161,7 +186,9 @@ class Terminal extends Component
             return;
         }
 
-        if ($product->stock_quantity <= 0) {
+        $available = $product->quantityAt($this->currentOutlet->id);
+
+        if ($available <= 0) {
             $this->addError('search', "Stok {$product->name} habis.");
 
             return;
@@ -174,7 +201,7 @@ class Terminal extends Component
             'price' => (float) $product->selling_price,
             'cost_price' => (float) $product->cost_price,
             'quantity' => 1,
-            'max_quantity' => $product->stock_quantity,
+            'max_quantity' => $available,
         ];
     }
 
@@ -381,9 +408,11 @@ class Terminal extends Component
 
     public function resumeOrder(int $transactionId): void
     {
-        $transaction = Transaction::with('items.product')
+        $transaction = Transaction::with('items.product.productStocks')
             ->where('status', TransactionStatus::HELD)
             ->findOrFail($transactionId);
+
+        $outletId = $this->currentOutlet->id;
 
         $this->cart = $transaction->items->mapWithKeys(fn ($item) => [
             (string) $item->product_id => [
@@ -393,7 +422,7 @@ class Terminal extends Component
                 'price' => (float) $item->price,
                 'cost_price' => (float) $item->cost_price,
                 'quantity' => $item->quantity,
-                'max_quantity' => max($item->product?->stock_quantity ?? 0, $item->quantity),
+                'max_quantity' => max($item->product?->quantityAt($outletId) ?? 0, $item->quantity),
             ],
         ])->all();
 
@@ -417,6 +446,7 @@ class Terminal extends Component
         $this->validate(['startingCash' => 'required|numeric|min:0']);
 
         Shift::create([
+            'outlet_id' => $this->currentOutlet->id,
             'user_id' => Auth::id(),
             'starting_cash' => $this->startingCash,
             'status' => ShiftStatus::OPEN,

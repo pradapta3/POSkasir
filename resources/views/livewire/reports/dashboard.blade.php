@@ -100,11 +100,14 @@
                 <div class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
                     <h2 class="text-sm font-semibold text-slate-700">Peringatan Stok Menipis</h2>
                     <div class="mt-4 space-y-3">
-                        @forelse ($this->lowStockProducts as $product)
+                        @forelse ($this->lowStockProducts as $stock)
                             <div class="flex items-center justify-between text-sm">
-                                <span class="text-slate-700">{{ $product->name }}</span>
+                                <div>
+                                    <span class="text-slate-700">{{ $stock->product_name }}</span>
+                                    <span class="block text-xs text-slate-400">{{ $stock->outlet_name }}</span>
+                                </div>
                                 <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
-                                    sisa {{ $product->stock_quantity }}
+                                    sisa {{ $stock->quantity }}
                                 </span>
                             </div>
                         @empty

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
@@ -12,9 +13,10 @@ use Illuminate\Support\Facades\Storage;
 
 class Product extends Model
 {
-    use SoftDeletes;
+    use BelongsToCompany, SoftDeletes;
 
     protected $fillable = [
+        'company_id',
         'category_id',
         'name',
         'sku',
@@ -23,8 +25,6 @@ class Product extends Model
         'unit',
         'cost_price',
         'selling_price',
-        'stock_quantity',
-        'low_stock_threshold',
         'image_path',
         'is_active',
     ];
@@ -34,8 +34,6 @@ class Product extends Model
         return [
             'cost_price' => 'decimal:2',
             'selling_price' => 'decimal:2',
-            'stock_quantity' => 'integer',
-            'low_stock_threshold' => 'integer',
             'is_active' => 'boolean',
         ];
     }
@@ -55,6 +53,36 @@ class Product extends Model
         return $this->hasMany(StockMovement::class);
     }
 
+    /**
+     * Catalog data (name, price, SKU) is shared across a company's
+     * outlets; the quantity on hand is not — each outlet has its own row
+     * here. Use stockAt()/quantityAt() rather than reading a single
+     * product-level stock number, which no longer exists.
+     */
+    public function productStocks(): HasMany
+    {
+        return $this->hasMany(ProductStock::class);
+    }
+
+    public function stockAt(Outlet|int $outlet): ?ProductStock
+    {
+        $outletId = $outlet instanceof Outlet ? $outlet->id : $outlet;
+
+        return $this->relationLoaded('productStocks')
+            ? $this->productStocks->firstWhere('outlet_id', $outletId)
+            : $this->productStocks()->where('outlet_id', $outletId)->first();
+    }
+
+    public function quantityAt(Outlet|int $outlet): int
+    {
+        return $this->stockAt($outlet)?->quantity ?? 0;
+    }
+
+    public function isLowStockAt(Outlet|int $outlet): bool
+    {
+        return $this->stockAt($outlet)?->isLowStock() ?? false;
+    }
+
     protected function profitMargin(): Attribute
     {
         return Attribute::get(fn () => $this->selling_price - $this->cost_price);
@@ -67,19 +95,9 @@ class Product extends Model
         );
     }
 
-    public function isLowStock(): bool
-    {
-        return $this->stock_quantity <= $this->low_stock_threshold;
-    }
-
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
-    }
-
-    public function scopeLowStock(Builder $query): Builder
-    {
-        return $query->whereColumn('stock_quantity', '<=', 'low_stock_threshold');
     }
 
     public function scopeSearch(Builder $query, string $term): Builder

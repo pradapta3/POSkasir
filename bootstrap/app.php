@@ -11,9 +11,16 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->redirectUsersTo(fn () => route('pos.terminal'));
+        $middleware->redirectUsersTo(function ($request) {
+            return $request->user()?->isPlatformAdmin()
+                ? route('platform.companies')
+                : route('pos.terminal');
+        });
         $middleware->validateCsrfTokens(except: ['webhooks/*']);
-        $middleware->alias(['role' => \App\Http\Middleware\EnsureUserHasRole::class]);
+        $middleware->alias([
+            'role' => \App\Http\Middleware\EnsureUserHasRole::class,
+            'approved' => \App\Http\Middleware\EnsureCompanyIsApproved::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

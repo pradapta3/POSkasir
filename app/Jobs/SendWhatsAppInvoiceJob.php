@@ -69,7 +69,12 @@ class SendWhatsAppInvoiceJob implements ShouldQueue
 
     private function buildMessage(Transaction $transaction): string
     {
-        $storeName = Setting::get('store_name') ?: 'POS Kasir';
+        // No authenticated user in a queue worker, so Setting's CompanyScope
+        // is a no-op here — the company_id must be passed explicitly or this
+        // could silently read another company's store settings.
+        $companyId = $transaction->company_id;
+
+        $storeName = Setting::get('store_name', companyId: $companyId) ?: 'POS Kasir';
 
         $lines = [
             "*{$storeName} — Invoice*",
@@ -100,7 +105,7 @@ class SendWhatsAppInvoiceJob implements ShouldQueue
 
         if ($transaction->payment_status === PaymentStatus::PAID) {
             $lines[] = 'Status: *LUNAS* ✅';
-            $lines[] = Setting::get('receipt_footer') ?: 'Terima kasih sudah berbelanja dengan kami!';
+            $lines[] = Setting::get('receipt_footer', companyId: $companyId) ?: 'Terima kasih sudah berbelanja dengan kami!';
         } elseif ($transaction->qris_url) {
             $lines[] = 'Status: *Menunggu Pembayaran*';
             $lines[] = 'Pindai kode QR di atas dengan aplikasi pendukung QRIS (GoPay, OVO, Dana, ShopeePay, m-banking) untuk membayar.';
@@ -109,8 +114,8 @@ class SendWhatsAppInvoiceJob implements ShouldQueue
             $lines[] = "Silakan selesaikan pembayaran di kasir dengan menyebutkan nomor invoice {$transaction->invoice_number}.";
         }
 
-        $storeAddress = Setting::get('store_address');
-        $storePhone = Setting::get('store_phone');
+        $storeAddress = Setting::get('store_address', companyId: $companyId);
+        $storePhone = Setting::get('store_phone', companyId: $companyId);
 
         if ($storeAddress || $storePhone) {
             $lines[] = '';

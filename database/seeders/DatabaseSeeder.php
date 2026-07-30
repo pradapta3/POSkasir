@@ -3,6 +3,8 @@
 namespace Database\Seeders;
 
 use App\Enums\RoleEnum;
+use App\Models\Company;
+use App\Models\Outlet;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Models\User;
@@ -14,9 +16,29 @@ class DatabaseSeeder extends Seeder
     {
         $this->call(RoleSeeder::class);
 
+        // On an upgrade from the pre-multitenant schema, the Fase 1 backfill
+        // migration already created this company. On a brand new install
+        // there's no Company/Outlet yet — User::create() and Setting::set()
+        // both require one, so it must exist before anything below runs.
+        $company = Company::firstOrCreate(
+            ['slug' => 'toko-saya'],
+            [
+                'name' => 'Toko Saya',
+                'owner_email' => 'admin@poskasir.test',
+                'is_active' => true,
+            ]
+        );
+
+        Outlet::firstOrCreate(
+            ['company_id' => $company->id, 'name' => 'Outlet Utama'],
+            ['is_active' => true]
+        );
+
         User::updateOrCreate(
             ['email' => 'admin@poskasir.test'],
             [
+                'company_id' => $company->id,
+                'outlet_id' => null,
                 'role_id' => Role::where('slug', RoleEnum::SUPERADMIN->value)->value('id'),
                 'name' => 'Super Admin',
                 'password' => bcrypt('password'),
@@ -36,7 +58,23 @@ class DatabaseSeeder extends Seeder
             'store_phone' => '',
             'receipt_footer' => 'Terima kasih telah berbelanja!',
         ] as $key => $default) {
-            Setting::firstOrCreate(['key' => $key], ['value' => $default]);
+            Setting::firstOrCreate(['key' => $key, 'company_id' => $company->id], ['value' => $default]);
         }
+
+        // The SaaS operator's own account — reviews/approves new company
+        // signups at /platform/companies. Anchored to Toko Saya only to
+        // satisfy users.company_id's NOT NULL constraint; unrelated to
+        // their actual duties (see User::isPlatformAdmin()).
+        User::updateOrCreate(
+            ['email' => 'platform@poskasir.test'],
+            [
+                'company_id' => $company->id,
+                'outlet_id' => null,
+                'role_id' => Role::where('slug', RoleEnum::PLATFORM_ADMIN->value)->value('id'),
+                'name' => 'Admin Platform',
+                'password' => bcrypt('password'),
+                'is_active' => true,
+            ]
+        );
     }
 }

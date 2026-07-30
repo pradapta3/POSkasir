@@ -26,6 +26,11 @@ class RoleSeeder extends Seeder
                 'slug' => RoleEnum::CASHIER->value,
                 'description' => 'Mengoperasikan kasir dan mengelola shift sendiri.',
             ],
+            [
+                'name' => 'Admin Platform',
+                'slug' => RoleEnum::PLATFORM_ADMIN->value,
+                'description' => 'Meninjau dan menyetujui pendaftaran toko baru di seluruh platform.',
+            ],
         ];
 
         foreach ($roles as $role) {

@@ -47,9 +47,15 @@ class Login extends Component
         RateLimiter::clear($this->throttleKey());
         request()->session()->regenerate();
 
-        Auth::user()->update(['last_login_at' => now()]);
+        $user = Auth::user();
+        $user->update(['last_login_at' => now()]);
 
-        $this->redirectRoute('pos.terminal', navigate: true);
+        // A Platform Admin has no operational store to land in — their
+        // company_id is just an FK anchor (see DatabaseSeeder). Anyone
+        // else lands on pos.terminal, which itself bounces a
+        // pending/rejected company to company.pending via the 'approved'
+        // route middleware.
+        $this->redirectRoute($user->isPlatformAdmin() ? 'platform.companies' : 'pos.terminal', navigate: true);
     }
 
     private function ensureIsNotRateLimited(): void
@@ -72,6 +78,6 @@ class Login extends Component
 
     public function render()
     {
-        return view('livewire.auth.login');
+        return view('livewire.auth.login')->layoutData(['title' => 'Masuk']);
     }
 }
