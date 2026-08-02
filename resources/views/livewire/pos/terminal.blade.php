@@ -7,7 +7,8 @@
     <div
         x-data="{ show: false, message: '', receiptUrl: null }"
         x-on:transaction-completed.window="
-            message = 'Transaksi ' + $event.detail.invoiceNumber + ' selesai.';
+            message = 'Transaksi ' + $event.detail.invoiceNumber + ' selesai.'
+                + ($event.detail.pointsEarned > 0 ? ' Member dapat ' + $event.detail.pointsEarned + ' poin.' : '');
             receiptUrl = '/pos/receipt/' + $event.detail.transactionId;
             show = true;
             setTimeout(() => show = false, 8000)
@@ -42,6 +43,7 @@
                     {{ $this->currentOutlet->name }}
                 </span>
             @endif
+            <livewire:partials.outlet-switcher />
             @if ($this->activeShift)
                 <span class="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
                     <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
@@ -222,6 +224,12 @@
                             <dd>&minus;{{ $rp($this->totals['discountAmount']) }}</dd>
                         </div>
                     @endif
+                    @if ($this->totals['pointsDiscountAmount'] > 0)
+                        <div class="flex justify-between text-rose-600">
+                            <dt>Diskon Poin ({{ $redeemPoints }} poin)</dt>
+                            <dd>&minus;{{ $rp($this->totals['pointsDiscountAmount']) }}</dd>
+                        </div>
+                    @endif
                     <div class="flex justify-between text-slate-600">
                         <dt>Pajak</dt>
                         <dd>{{ $rp($this->totals['taxAmount']) }}</dd>
@@ -264,8 +272,8 @@
                     <p class="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{{ $message }}</p>
                 @enderror
 
-                <div class="mt-4 grid grid-cols-3 gap-2">
-                    @foreach (['cash' => 'Tunai', 'qris' => 'QRIS', 'gopay' => 'GoPay', 'card' => 'Kartu', 'other' => 'Lainnya'] as $value => $label)
+                <div class="mt-4 grid grid-cols-2 gap-2">
+                    @foreach (['cash' => 'Tunai', 'qris' => 'QRIS'] as $value => $label)
                         <button
                             wire:click="$set('paymentMethod', '{{ $value }}')"
                             class="rounded-lg border py-2 text-sm font-medium transition {{ $paymentMethod === $value ? 'border-rose-600 bg-rose-50 text-rose-700' : 'border-slate-300 text-slate-600 hover:bg-slate-50' }}"
@@ -296,54 +304,78 @@
                         </p>
                     </div>
                 @else
-                    <p class="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-500">
-                        Kode {{ strtoupper($paymentMethod) }} dinamis senilai {{ $rp($this->totals['grandTotal']) }} akan dibuat setelah pembayaran dikonfirmasi.
-                    </p>
+                    <div class="mt-4 text-center">
+                        @if ($this->qrisImageUrl)
+                            <img src="{{ $this->qrisImageUrl }}" alt="Kode QRIS toko" class="mx-auto h-56 w-56 rounded-lg border border-slate-200 object-contain">
+                            <p class="mt-3 text-sm text-slate-500">
+                                Minta pelanggan pindai kode ini dan bayar tepat <span class="font-semibold text-slate-800">{{ $rp($this->totals['grandTotal']) }}</span>.
+                                Setelah pelanggan menunjukkan bukti pembayaran berhasil, tekan Konfirmasi Pembayaran.
+                            </p>
+                        @else
+                            <p class="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                                Kode QRIS toko belum diatur. Minta Superadmin mengunggahnya di Pengaturan.
+                            </p>
+                        @endif
+                    </div>
                 @endif
 
                 <div class="mt-4">
                     <label class="text-sm font-medium text-slate-600">Nomor HP pelanggan (opsional — untuk invoice digital)</label>
-                    <input type="text" wire:model="customerPhone" placeholder="08xxxxxxxxxx" class="mt-1 w-full rounded-lg border-slate-300 focus:border-rose-500 focus:ring-rose-500">
+                    <input type="text" wire:model.live.debounce.500ms="customerPhone" placeholder="08xxxxxxxxxx" class="mt-1 w-full rounded-lg border-slate-300 focus:border-rose-500 focus:ring-rose-500">
                     <input type="text" wire:model="customerName" placeholder="Nama pelanggan (opsional)" class="mt-2 w-full rounded-lg border-slate-300 focus:border-rose-500 focus:ring-rose-500">
                 </div>
 
-                <div class="mt-6 flex gap-2">
+                @if ($this->loyaltyEnabled && $customerPhone)
+                    @if ($this->matchedMember)
+                        <div class="mt-3 rounded-lg bg-rose-50 p-3">
+                            <div class="flex items-center gap-1.5 text-sm font-semibold text-rose-700">
+                                <x-icon name="star" class="h-4 w-4" /> {{ $this->matchedMember->name }} &middot; {{ $this->matchedMember->member_code }}
+                            </div>
+                            <p class="mt-0.5 text-xs text-rose-600">{{ number_format($this->matchedMember->loyalty_points) }} poin tersedia</p>
+
+                            <div class="mt-2 flex items-end gap-2">
+                                <div class="flex-1">
+                                    <label class="text-xs font-medium text-slate-600">Tukar Poin</label>
+                                    <input type="number" step="1" min="0" wire:model.live="redeemPoints" class="mt-1 w-full rounded-lg border-slate-300 text-sm focus:border-rose-500 focus:ring-rose-500">
+                                </div>
+                                <button
+                                    type="button"
+                                    wire:click="setRedeemPoints({{ $this->matchedMember->loyalty_points }})"
+                                    class="rounded-lg border border-rose-300 bg-white px-3 py-2 text-xs font-medium text-rose-700 hover:bg-rose-50"
+                                >Pakai Semua</button>
+                            </div>
+                            @if ($redeemPoints > 0)
+                                <p class="mt-1.5 text-xs text-slate-500">
+                                    Diskon dari poin: <span class="font-semibold text-slate-800">{{ $rp($this->totals['pointsDiscountAmount']) }}</span>
+                                </p>
+                            @endif
+                        </div>
+                    @else
+                        <label class="mt-3 flex items-center gap-2 text-sm text-slate-600">
+                            <input type="checkbox" wire:model="enrollAsMember" class="rounded border-slate-300 text-rose-600 focus:ring-rose-500">
+                            Daftarkan sebagai member baru
+                        </label>
+                    @endif
+                @endif
+
+                <div x-data x-show="!$store.connectivity.online" x-cloak class="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 ring-1 ring-amber-200">
+                    Tidak ada koneksi internet — tunggu koneksi kembali sebelum menyelesaikan pembayaran.
+                </div>
+
+                <div class="mt-4 flex gap-2">
                     <button wire:click="$set('showPaymentModal', false)" class="flex-1 rounded-lg border border-slate-300 py-2 font-medium text-slate-600 hover:bg-slate-50">
                         Batal
                     </button>
-                    <button wire:click="checkout" wire:loading.attr="disabled" class="flex-1 rounded-lg bg-rose-600 py-2 font-bold text-white hover:bg-rose-700 disabled:opacity-60">
+                    <button
+                        wire:click="checkout"
+                        wire:loading.attr="disabled"
+                        x-data
+                        :disabled="!$store.connectivity.online || {{ $paymentMethod === 'qris' && ! $this->qrisImageUrl ? 'true' : 'false' }}"
+                        class="flex-1 rounded-lg bg-rose-600 py-2 font-bold text-white hover:bg-rose-700 disabled:opacity-60"
+                    >
                         Konfirmasi Pembayaran
                     </button>
                 </div>
-            </div>
-        </div>
-    @endif
-
-    {{-- Dynamic QRIS modal --}}
-    @if ($showQrisModal)
-        <div class="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
-            <div class="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl" wire:poll.3s="refreshQrisStatus">
-                <h2 class="text-lg font-bold text-slate-900">Pindai untuk Bayar</h2>
-                <p class="mt-1 text-sm text-slate-500">{{ $qrisInvoiceNumber }}</p>
-
-                @if ($qrisUrl)
-                    <img src="{{ $qrisUrl }}" alt="Kode QRIS dinamis" class="mx-auto mt-4 h-64 w-64 rounded-lg border border-slate-200 object-contain">
-                @endif
-
-                <div class="mt-4 flex items-center justify-center gap-2 text-sm text-slate-500">
-                    <span class="h-2 w-2 animate-pulse rounded-full bg-amber-500"></span>
-                    Menunggu konfirmasi pembayaran&hellip;
-                </div>
-
-                <button
-                    wire:click="$set('showQrisModal', false)"
-                    class="mt-6 w-full rounded-lg border border-slate-300 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-                >
-                    Tutup
-                </button>
-                <p class="mt-2 text-xs text-slate-400">
-                    Transaksi sudah tercatat sebagai tertunda — menutup ini hanya menghentikan pengecekan status di sini; webhook tetap akan menandainya lunas begitu Midtrans mengonfirmasi.
-                </p>
             </div>
         </div>
     @endif

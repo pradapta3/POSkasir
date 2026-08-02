@@ -3,8 +3,10 @@
 namespace App\Livewire\Platform\Companies;
 
 use App\Enums\CompanyStatus;
+use App\Enums\RoleEnum;
 use App\Livewire\Actions\Logout;
 use App\Models\Company;
+use App\Models\Scopes\CompanyScope;
 use App\Notifications\CompanyApproved;
 use App\Notifications\CompanyRejected;
 use Illuminate\Support\Collection;
@@ -33,7 +35,17 @@ class Index extends Component
     public function companies(): Collection
     {
         return Company::query()
-            ->withCount('users')
+            // Exclude the platform_admin row itself from every company's
+            // user count — it's only there as an FK anchor (see class
+            // docblock), not real staff, and would otherwise inflate
+            // whichever company happens to be its anchor by one.
+            ->withCount(['users' => fn ($q) => $q->whereRelation('role', 'slug', '!=', RoleEnum::PLATFORM_ADMIN->value)])
+            // withoutGlobalScope here because Outlet::class uses
+            // BelongsToCompany — left alone, CompanyScope would filter
+            // this count subquery down to the *viewer's own* (anchor)
+            // company for every row, making every other company in the
+            // list show 0 outlets regardless of how many they actually have.
+            ->withCount(['outlets' => fn ($q) => $q->withoutGlobalScope(CompanyScope::class)])
             ->with(['users' => fn ($q) => $q->oldest()->limit(1)])
             ->when($this->statusFilter !== 'all', fn ($q) => $q->where('status', $this->statusFilter))
             ->orderByDesc('created_at')
@@ -91,6 +103,26 @@ class Index extends Component
 
         $this->rejectingId = null;
         unset($this->companies, $this->pendingCount);
+    }
+
+    /**
+     * Suspends an already-approved company (e.g. non-payment, abuse
+     * report) without touching its status — it was validly approved and
+     * stays that way in the record, just temporarily locked out. See
+     * EnsureCompanyIsApproved for how this is enforced.
+     */
+    public function suspend(int $companyId): void
+    {
+        Company::whereKey($companyId)->where('status', CompanyStatus::APPROVED)->update(['is_active' => false]);
+
+        unset($this->companies);
+    }
+
+    public function reactivate(int $companyId): void
+    {
+        Company::whereKey($companyId)->where('status', CompanyStatus::APPROVED)->update(['is_active' => true]);
+
+        unset($this->companies);
     }
 
     public function logout(Logout $logout): void

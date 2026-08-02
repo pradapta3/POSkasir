@@ -8,6 +8,7 @@ use App\Enums\ShiftStatus;
 use App\Enums\TransactionStatus;
 use App\Livewire\Actions\Logout;
 use App\Models\Category;
+use App\Models\Customer;
 use App\Models\Outlet;
 use App\Models\Product;
 use App\Models\Setting;
@@ -17,6 +18,7 @@ use App\Services\Pos\CartCalculator;
 use App\Services\Pos\CheckoutService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -46,6 +48,10 @@ class Terminal extends Component
 
     public ?string $customerPhone = null;
 
+    public bool $enrollAsMember = false;
+
+    public int $redeemPoints = 0;
+
     public ?int $resumingTransactionId = null;
 
     public bool $showPaymentModal = false;
@@ -60,30 +66,38 @@ class Terminal extends Component
 
     public float $actualCash = 0;
 
-    public bool $showQrisModal = false;
-
-    public ?string $qrisUrl = null;
-
-    public ?string $qrisInvoiceNumber = null;
-
-    public ?int $qrisTransactionId = null;
-
     public function mount(): void
     {
         $this->showOpenShiftModal = $this->activeShift === null;
         $this->taxPercentage = $this->defaultTaxPercentage();
     }
 
+    /**
+     * Scoped to currentOutlet, not just "any open shift for this user" —
+     * a Manager/Superadmin can switch outlets (OutletSwitcher) while a
+     * shift they opened at a different outlet is still open. Without this,
+     * checkout would use that other shift's outlet_id (CheckoutService
+     * always takes the outlet from the shift, never a separately-passed
+     * value) and silently record the sale against the wrong branch.
+     */
     #[Computed]
     public function activeShift(): ?Shift
     {
-        return Auth::user()->activeShift();
+        return Auth::user()->shifts()
+            ->where('outlet_id', $this->currentOutlet?->id)
+            ->where('status', ShiftStatus::OPEN->value)
+            ->latest('opened_at')
+            ->first();
     }
 
     /**
      * A Cashier is pinned to one outlet (users.outlet_id); a Manager or
-     * Superadmin has outlet_id = null (every outlet in the company) and,
-     * until the outlet switcher lands, defaults to the company's first one.
+     * Superadmin has outlet_id = null (every outlet in the company) and
+     * operates whichever one they last picked via OutletSwitcher (session),
+     * falling back to the company's first active outlet if they haven't
+     * picked one yet — a cash register can't operate over "every outlet"
+     * simultaneously, unlike Reports/Riwayat which treat no selection as
+     * "show everything".
      */
     #[Computed]
     public function currentOutlet(): ?Outlet
@@ -94,7 +108,7 @@ class Terminal extends Component
             return $user->outlet;
         }
 
-        return Outlet::where('company_id', $user->company_id)
+        return Outlet::currentSessionOutlet($user) ?? Outlet::where('company_id', $user->company_id)
             ->where('is_active', true)
             ->orderBy('id')
             ->first();
@@ -140,7 +154,43 @@ class Terminal extends Component
             $this->discountType ? DiscountType::from($this->discountType) : null,
             $this->discountValue,
             $this->taxPercentage,
+            $this->redeemPoints * $this->loyaltyRedeemValue(),
         );
+    }
+
+    #[Computed]
+    public function loyaltyEnabled(): bool
+    {
+        return (bool) Setting::get('loyalty_enabled', false);
+    }
+
+    /**
+     * A member matched by the phone typed into the payment modal — null if
+     * loyalty is off, no phone has been entered yet, or that phone doesn't
+     * belong to an enrolled member (a plain WhatsApp-only Customer doesn't
+     * count). Scoped automatically via Customer's BelongsToCompany.
+     */
+    #[Computed]
+    public function matchedMember(): ?Customer
+    {
+        if (! $this->loyaltyEnabled || ! $this->customerPhone) {
+            return null;
+        }
+
+        return Customer::where('phone', $this->customerPhone)->where('is_member', true)->first();
+    }
+
+    public function updatedCustomerPhone(): void
+    {
+        // A different phone means a different (or no) member — any points
+        // queued for redemption belonged to whoever was matched before.
+        $this->redeemPoints = 0;
+        unset($this->matchedMember);
+    }
+
+    private function loyaltyRedeemValue(): float
+    {
+        return (float) Setting::get('loyalty_redeem_value', 0);
     }
 
     public function filterByCategory(?int $categoryId): void
@@ -290,6 +340,24 @@ class Terminal extends Component
     }
 
     /**
+     * Clamped to the member's actual balance — the payment modal's "Pakai
+     * Semua" button and the manual input both funnel through this, so a
+     * stale/tampered value can never queue more than the member has.
+     */
+    public function setRedeemPoints(int $points): void
+    {
+        $balance = $this->matchedMember?->loyalty_points ?? 0;
+
+        $this->redeemPoints = max(0, min($points, $balance));
+    }
+
+    /** Clamps the same way whether the member typed a value or tapped "Pakai Semua". */
+    public function updatedRedeemPoints(): void
+    {
+        $this->setRedeemPoints($this->redeemPoints);
+    }
+
+    /**
      * Quick cash buttons for the payment modal: the exact total, plus the
      * next round Rp 10k/50k/100k above it — the denominations an Indonesian
      * cashier is actually handed across the counter. Skips any that equal
@@ -309,6 +377,21 @@ class Terminal extends Component
             ->unique()
             ->values()
             ->all();
+    }
+
+    /**
+     * The store's own static QRIS code (uploaded once via Pengaturan) —
+     * the same image for every sale, since there's no per-transaction
+     * gateway generating a unique code. Null if the store hasn't uploaded
+     * one yet, which the payment modal warns about instead of showing QRIS
+     * as if it were ready to use.
+     */
+    #[Computed]
+    public function qrisImageUrl(): ?string
+    {
+        $path = Setting::get('qris_image_path');
+
+        return $path ? Storage::disk('public')->url($path) : null;
     }
 
     public function checkout(CheckoutService $service): void
@@ -331,6 +414,9 @@ class Terminal extends Component
                 amountPaid: $this->amountPaid,
                 customerName: $this->customerName,
                 customerPhone: $this->customerPhone,
+                customerId: $this->matchedMember?->id,
+                redeemPoints: $this->redeemPoints,
+                enrollAsMember: $this->enrollAsMember,
                 resumeTransactionId: $this->resumingTransactionId,
             );
         } catch (RuntimeException $e) {
@@ -343,52 +429,15 @@ class Terminal extends Component
         $this->showPaymentModal = false;
         unset($this->heldOrders);
 
-        $isPendingQris = $transaction->payment_method !== PaymentMethod::CASH->value
-            && $transaction->payment_status->value === 'pending';
-
-        if ($isPendingQris && $transaction->qris_url) {
-            $this->qrisUrl = $transaction->qris_url;
-            $this->qrisInvoiceNumber = $transaction->invoice_number;
-            $this->qrisTransactionId = $transaction->id;
-            $this->showQrisModal = true;
-
-            return;
-        }
-
-        if ($isPendingQris) {
-            // Gateway call failed (see GenerateQrisCode listener log) — the
-            // sale is still recorded, just without a scannable code yet.
-            $this->addError('checkout', 'Transaksi tercatat, tapi kode QR gagal dibuat. Periksa payment gateway atau coba bayar tunai.');
-        }
-
-        $this->dispatch('transaction-completed', invoiceNumber: $transaction->invoice_number, transactionId: $transaction->id);
-    }
-
-    /**
-     * Polled every few seconds by the QRIS modal (wire:poll) while waiting
-     * for MidtransWebhookController to mark the transaction paid.
-     */
-    public function refreshQrisStatus(): void
-    {
-        if (! $this->qrisTransactionId) {
-            return;
-        }
-
-        $isPaid = Transaction::whereKey($this->qrisTransactionId)
-            ->where('payment_status', 'paid')
-            ->exists();
-
-        if (! $isPaid) {
-            return;
-        }
-
-        $invoiceNumber = $this->qrisInvoiceNumber;
-        $transactionId = $this->qrisTransactionId;
-
-        $this->showQrisModal = false;
-        $this->reset(['qrisUrl', 'qrisInvoiceNumber', 'qrisTransactionId']);
-
-        $this->dispatch('transaction-completed', invoiceNumber: $invoiceNumber, transactionId: $transactionId);
+        // Every payment method completes immediately now — QRIS is a
+        // static store-wide code the cashier confirms visually, not a
+        // gateway callback — so there's no pending/waiting state to branch on.
+        $this->dispatch(
+            'transaction-completed',
+            invoiceNumber: $transaction->invoice_number,
+            transactionId: $transaction->id,
+            pointsEarned: $transaction->loyalty_points_earned,
+        );
     }
 
     public function holdOrder(CheckoutService $service): void
@@ -487,10 +536,12 @@ class Terminal extends Component
     {
         $this->reset([
             'cart', 'discountType', 'discountValue', 'amountPaid',
-            'customerName', 'customerPhone', 'resumingTransactionId',
+            'customerName', 'customerPhone', 'enrollAsMember', 'redeemPoints',
+            'resumingTransactionId',
         ]);
         $this->taxPercentage = $this->defaultTaxPercentage();
         $this->paymentMethod = 'cash';
+        unset($this->matchedMember);
     }
 
     private function defaultTaxPercentage(): float

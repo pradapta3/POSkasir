@@ -175,6 +175,13 @@ class Index extends Component
 
             $user->update($attributes);
         } else {
+            if ($this->exceedsUserLimit()) {
+                $max = Auth::user()->company->subscriptionPlan->max_users;
+                $this->addError('name', "Paket langganan kamu hanya mengizinkan maksimal {$max} pengguna. Upgrade paket di Langganan Saya untuk menambah staf.");
+
+                return;
+            }
+
             User::create($attributes + ['company_id' => Auth::user()->company_id]);
         }
 
@@ -219,6 +226,23 @@ class Index extends Component
     private function canManage(User $target): bool
     {
         return ! $target->isSuperadmin() || Auth::user()->isSuperadmin();
+    }
+
+    /**
+     * No plan (still on trial) or a plan with max_users = null both mean
+     * unlimited. platform_admin's anchored row is excluded from the count
+     * the same way it's excluded from users()/companyUsers() — it isn't
+     * real staff eating into this company's seat limit.
+     */
+    private function exceedsUserLimit(): bool
+    {
+        $max = Auth::user()->company->subscriptionPlan?->max_users;
+
+        if ($max === null) {
+            return false;
+        }
+
+        return $this->companyUsers()->count() >= $max;
     }
 
     private function resetForm(): void

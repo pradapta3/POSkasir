@@ -1,16 +1,5 @@
 <div class="min-h-screen">
-    <header class="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
-        <div class="flex items-center gap-3">
-            <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-600 text-sm font-bold text-white shadow-md shadow-rose-600/25">
-                P
-            </div>
-            <div>
-                <h1 class="text-base font-bold text-slate-900">Admin Platform</h1>
-                <p class="text-xs text-slate-400">Tinjau pendaftaran toko baru</p>
-            </div>
-        </div>
-        <button wire:click="logout" class="text-sm font-medium text-slate-500 hover:text-rose-600">Keluar</button>
-    </header>
+    @include('partials.platform-nav')
 
     <main class="mx-auto max-w-5xl p-6">
         <div class="flex flex-wrap items-center gap-2">
@@ -38,6 +27,7 @@
                     <tr>
                         <th class="px-4 py-3 font-medium">Nama Toko</th>
                         <th class="px-4 py-3 font-medium">Pemilik</th>
+                        <th class="px-4 py-3 font-medium">Outlet / Pengguna</th>
                         <th class="px-4 py-3 font-medium">Tanggal Daftar</th>
                         <th class="px-4 py-3 font-medium">Status</th>
                         <th class="px-4 py-3 font-medium"></th>
@@ -45,24 +35,27 @@
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     @forelse ($this->companies as $company)
-                        @php $owner = $company->users->first(); @endphp
+                        @php
+                            $owner = $company->users->first();
+                            $isSuspended = $company->status->value === 'approved' && ! $company->is_active;
+                            $badge = match (true) {
+                                $isSuspended => 'bg-slate-200 text-slate-600',
+                                $company->status->value === 'pending' => 'bg-amber-100 text-amber-700',
+                                $company->status->value === 'approved' => 'bg-emerald-100 text-emerald-700',
+                                default => 'bg-red-100 text-red-700',
+                            };
+                        @endphp
                         <tr wire:key="company-{{ $company->id }}">
                             <td class="px-4 py-3 font-medium text-slate-800">{{ $company->name }}</td>
                             <td class="px-4 py-3 text-slate-600">
                                 <p>{{ $owner?->name ?? '-' }}</p>
                                 <p class="text-xs text-slate-400">{{ $owner?->email ?? $company->owner_email }}</p>
                             </td>
+                            <td class="px-4 py-3 text-slate-600">{{ $company->outlets_count }} outlet &middot; {{ $company->users_count }} pengguna</td>
                             <td class="px-4 py-3 text-slate-600">{{ $company->created_at->format('d M Y, H:i') }}</td>
                             <td class="px-4 py-3">
-                                @php
-                                    $badge = match ($company->status->value) {
-                                        'pending' => 'bg-amber-100 text-amber-700',
-                                        'approved' => 'bg-emerald-100 text-emerald-700',
-                                        'rejected' => 'bg-red-100 text-red-700',
-                                    };
-                                @endphp
                                 <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold {{ $badge }}">
-                                    {{ $company->status->label() }}
+                                    {{ $isSuspended ? 'Dinonaktifkan' : $company->status->label() }}
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-right">
@@ -73,15 +66,26 @@
                                         class="font-medium text-emerald-600 hover:underline"
                                     >Setujui</button>
                                     <button wire:click="startReject({{ $company->id }})" class="ml-3 font-medium text-red-600 hover:underline">Tolak</button>
+                                @elseif ($isSuspended)
+                                    <button
+                                        wire:click="reactivate({{ $company->id }})"
+                                        wire:confirm="Aktifkan kembali toko &quot;{{ $company->name }}&quot;?"
+                                        class="font-medium text-emerald-600 hover:underline"
+                                    >Aktifkan</button>
+                                @elseif ($company->status->value === 'approved')
+                                    <span class="mr-3 text-xs text-slate-400">Disetujui {{ $company->approved_at?->format('d M Y') }}</span>
+                                    <button
+                                        wire:click="suspend({{ $company->id }})"
+                                        wire:confirm="Nonaktifkan toko &quot;{{ $company->name }}&quot;? Pengguna toko ini tidak akan bisa mengakses aplikasi sampai diaktifkan kembali."
+                                        class="font-medium text-red-600 hover:underline"
+                                    >Nonaktifkan</button>
                                 @else
-                                    <span class="text-xs text-slate-400">
-                                        {{ $company->status->value === 'approved' ? 'Disetujui '.$company->approved_at?->format('d M Y') : 'Sudah ditinjau' }}
-                                    </span>
+                                    <span class="text-xs text-slate-400">Sudah ditinjau</span>
                                 @endif
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">Tidak ada toko pada status ini.</td></tr>
+                        <tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">Tidak ada toko pada status ini.</td></tr>
                     @endforelse
                 </tbody>
             </table>

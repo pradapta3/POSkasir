@@ -25,18 +25,44 @@
                 <a href="{{ route('reports.dashboard') }}" wire:navigate class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-700">
                     <x-icon name="chart-bar" class="h-4 w-4 text-slate-400" /> Laporan
                 </a>
+                <a href="{{ route('reports.inventory') }}" wire:navigate class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-700">
+                    <x-icon name="scale" class="h-4 w-4 text-slate-400" /> Laporan Inventaris
+                </a>
+                @if (Auth::user()->isSuperadmin())
+                    <a href="{{ route('reports.outlets') }}" wire:navigate class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-700">
+                        <x-icon name="storefront" class="h-4 w-4 text-slate-400" /> Perbandingan Outlet
+                    </a>
+                @endif
                 <a href="{{ route('admin.products') }}" wire:navigate class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-700">
                     <x-icon name="cube" class="h-4 w-4 text-slate-400" /> Produk
                 </a>
+                <a href="{{ route('admin.labels') }}" wire:navigate class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-700">
+                    <x-icon name="tag" class="h-4 w-4 text-slate-400" /> Cetak Label
+                </a>
                 <a href="{{ route('admin.categories') }}" wire:navigate class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-700">
                     <x-icon name="tag" class="h-4 w-4 text-slate-400" /> Kategori
+                </a>
+                <a href="{{ route('admin.suppliers') }}" wire:navigate class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-700">
+                    <x-icon name="truck" class="h-4 w-4 text-slate-400" /> Supplier
+                </a>
+                <a href="{{ route('admin.purchasing') }}" wire:navigate class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-700">
+                    <x-icon name="clipboard-list" class="h-4 w-4 text-slate-400" /> Pembelian
+                </a>
+                <a href="{{ route('admin.members') }}" wire:navigate class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-700">
+                    <x-icon name="star" class="h-4 w-4 text-slate-400" /> Member
                 </a>
                 <a href="{{ route('admin.users') }}" wire:navigate class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-700">
                     <x-icon name="users" class="h-4 w-4 text-slate-400" /> Pengguna
                 </a>
                 @if (Auth::user()->isSuperadmin())
+                    <a href="{{ route('admin.outlets') }}" wire:navigate class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-700">
+                        <x-icon name="storefront" class="h-4 w-4 text-slate-400" /> Outlet
+                    </a>
                     <a href="{{ route('admin.settings') }}" wire:navigate class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-700">
                         <x-icon name="cog" class="h-4 w-4 text-slate-400" /> Pengaturan
+                    </a>
+                    <a href="{{ route('billing.index') }}" wire:navigate class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-700">
+                        <x-icon name="wallet" class="h-4 w-4 text-slate-400" /> Langganan Saya
                     </a>
                 @endif
             </div>

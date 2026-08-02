@@ -18,13 +18,6 @@ class WhatsAppServiceProvider extends ServiceProvider
         ));
     }
 
-    /**
-     * Must be registered AFTER PaymentServiceProvider in
-     * bootstrap/providers.php: when QUEUE_CONNECTION=sync, dispatching a
-     * job runs it inline, so GenerateQrisCode (Phase 3) needs to have
-     * already saved qris_url before this listener's job executes and reads
-     * the transaction back from the database. See SETUP.md.
-     */
     public function boot(): void
     {
         Event::listen(TransactionCheckedOut::class, QueueWhatsAppInvoice::class);

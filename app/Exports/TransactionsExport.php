@@ -20,6 +20,7 @@ class TransactionsExport implements FromQuery, WithHeadings, WithMapping, Should
     public function __construct(
         private readonly CarbonInterface $from,
         private readonly CarbonInterface $to,
+        private readonly ?int $outletId = null,
     ) {
     }
 
@@ -27,6 +28,7 @@ class TransactionsExport implements FromQuery, WithHeadings, WithMapping, Should
     {
         return Transaction::query()
             ->with(['user', 'customer', 'items'])
+            ->when($this->outletId, fn ($q) => $q->where('outlet_id', $this->outletId))
             ->whereBetween('created_at', [$this->from, $this->to])
             ->orderBy('created_at');
     }
@@ -56,9 +58,24 @@ class TransactionsExport implements FromQuery, WithHeadings, WithMapping, Should
             (float) $transaction->grand_total,
             (float) $costOfGoods,
             $transaction->grossProfit(),
-            $transaction->payment_method ? PaymentMethod::from($transaction->payment_method)->label() : '-',
+            $this->paymentMethodLabel($transaction->payment_method),
             $transaction->payment_status->label(),
             $transaction->status->label(),
         ];
+    }
+
+    /**
+     * tryFrom (not from) — PaymentMethod has shrunk over time (GoPay/Kartu/
+     * Lainnya were removed once QRIS became a static store-uploaded code),
+     * but old transactions still hold those raw string values in the DB.
+     * Falls back to the raw value so historical exports don't crash.
+     */
+    private function paymentMethodLabel(?string $value): string
+    {
+        if (! $value) {
+            return '-';
+        }
+
+        return PaymentMethod::tryFrom($value)?->label() ?? ucfirst($value);
     }
 }

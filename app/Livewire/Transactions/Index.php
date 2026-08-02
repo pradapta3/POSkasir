@@ -3,8 +3,10 @@
 namespace App\Livewire\Transactions;
 
 use App\Livewire\Actions\Logout;
+use App\Models\Outlet;
 use App\Models\Transaction;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -37,6 +39,20 @@ class Index extends Component
         $this->resetPage();
     }
 
+    /**
+     * A Cashier only ever sees their own outlet's history (they're pinned
+     * via users.outlet_id, same as the Terminal). A Manager/Superadmin sees
+     * whatever OutletSwitcher currently has selected, or every outlet in
+     * the company if they haven't picked one.
+     */
+    #[Computed]
+    public function outletId(): ?int
+    {
+        $user = Auth::user();
+
+        return $user->outlet_id ?? Outlet::currentSessionOutlet($user)?->id;
+    }
+
     #[Computed]
     public function transactions(): LengthAwarePaginator
     {
@@ -49,6 +65,7 @@ class Index extends Component
 
         return Transaction::query()
             ->with('user')
+            ->when($this->outletId, fn ($q) => $q->where('outlet_id', $this->outletId))
             // Excludes still-held carts, which never get a payment_method
             // and can't produce a meaningful receipt.
             ->whereNotNull('payment_method')

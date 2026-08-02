@@ -46,16 +46,7 @@ class SendWhatsAppInvoiceJob implements ShouldQueue
             return;
         }
 
-        $message = $this->buildMessage($transaction);
-
-        // A pending non-cash sale with a live QR gets the code as an image
-        // with the invoice as its caption; everything else (already paid,
-        // or QR generation failed) gets a plain text invoice.
-        if ($transaction->payment_status === PaymentStatus::PENDING && $transaction->qris_url) {
-            $gateway->sendImage($phone, $transaction->qris_url, $message);
-        } else {
-            $gateway->sendText($phone, $message);
-        }
+        $gateway->sendText($phone, $this->buildMessage($transaction));
 
         $transaction->update(['whatsapp_notified_at' => now()]);
     }
@@ -99,6 +90,10 @@ class SendWhatsAppInvoiceJob implements ShouldQueue
             $lines[] = "Diskon: -{$this->rupiah($transaction->discount_amount)}";
         }
 
+        if ((float) $transaction->loyalty_discount_amount > 0) {
+            $lines[] = "Diskon Poin ({$transaction->loyalty_points_redeemed} poin): -{$this->rupiah($transaction->loyalty_discount_amount)}";
+        }
+
         $lines[] = "Pajak ({$transaction->tax_percentage}%): {$this->rupiah($transaction->tax_amount)}";
         $lines[] = "*Total: {$this->rupiah($transaction->grand_total)}*";
         $lines[] = '';
@@ -106,9 +101,10 @@ class SendWhatsAppInvoiceJob implements ShouldQueue
         if ($transaction->payment_status === PaymentStatus::PAID) {
             $lines[] = 'Status: *LUNAS* ✅';
             $lines[] = Setting::get('receipt_footer', companyId: $companyId) ?: 'Terima kasih sudah berbelanja dengan kami!';
-        } elseif ($transaction->qris_url) {
-            $lines[] = 'Status: *Menunggu Pembayaran*';
-            $lines[] = 'Pindai kode QR di atas dengan aplikasi pendukung QRIS (GoPay, OVO, Dana, ShopeePay, m-banking) untuk membayar.';
+
+            if ($transaction->loyalty_points_earned > 0) {
+                $lines[] = "Kamu dapat *{$transaction->loyalty_points_earned} poin* dari transaksi ini. 🎉";
+            }
         } else {
             $lines[] = 'Status: *Menunggu Pembayaran*';
             $lines[] = "Silakan selesaikan pembayaran di kasir dengan menyebutkan nomor invoice {$transaction->invoice_number}.";

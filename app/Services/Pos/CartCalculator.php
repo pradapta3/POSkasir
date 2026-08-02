@@ -39,16 +39,28 @@ class CartCalculator
     }
 
     /**
-     * @return array{subtotal: float, discountAmount: float, taxAmount: float, grandTotal: float}
+     * $pointsDiscountAmount (a member redeeming loyalty points) stacks with
+     * the manual discount but is tracked separately — a sale can have both
+     * at once, and reports/receipts need to tell them apart. Capped the
+     * same way discountAmount is: never past what's left of the subtotal.
+     *
+     * @return array{subtotal: float, discountAmount: float, pointsDiscountAmount: float, taxAmount: float, grandTotal: float}
      */
-    public function totals(array $cart, ?DiscountType $discountType, float $discountValue, float $taxPercentage): array
-    {
+    public function totals(
+        array $cart,
+        ?DiscountType $discountType,
+        float $discountValue,
+        float $taxPercentage,
+        float $pointsDiscountAmount = 0,
+    ): array {
         $subtotal = $this->subtotal($cart);
         $discountAmount = $this->discountAmount($subtotal, $discountType, $discountValue);
-        $taxableAmount = $subtotal - $discountAmount;
+        $remainingAfterDiscount = $subtotal - $discountAmount;
+        $pointsDiscountAmount = round(max(0, min($pointsDiscountAmount, $remainingAfterDiscount)), 2);
+        $taxableAmount = $remainingAfterDiscount - $pointsDiscountAmount;
         $taxAmount = $this->taxAmount($taxableAmount, $taxPercentage);
         $grandTotal = round($taxableAmount + $taxAmount, 2);
 
-        return compact('subtotal', 'discountAmount', 'taxAmount', 'grandTotal');
+        return compact('subtotal', 'discountAmount', 'pointsDiscountAmount', 'taxAmount', 'grandTotal');
     }
 }

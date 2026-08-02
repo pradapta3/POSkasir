@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\Outlet;
 use App\Models\Role;
 use App\Models\Setting;
+use App\Models\SubscriptionPlan;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -76,5 +77,17 @@ class DatabaseSeeder extends Seeder
                 'is_active' => true,
             ]
         );
+
+        // Starting pricing tiers — Platform Admin can adjust these anytime
+        // at /platform/plans without a code change. updateOrCreate (not
+        // firstOrCreate) so re-running this seeder keeps limits/pricing in
+        // sync with whatever's defined here, matching RoleSeeder's pattern.
+        foreach ([
+            ['name' => 'Basic', 'slug' => 'basic', 'price_per_month' => 99000, 'max_outlets' => 1, 'max_users' => 5, 'sort_order' => 1],
+            ['name' => 'Pro', 'slug' => 'pro', 'price_per_month' => 249000, 'max_outlets' => 5, 'max_users' => 20, 'sort_order' => 2],
+            ['name' => 'Enterprise', 'slug' => 'enterprise', 'price_per_month' => 499000, 'max_outlets' => null, 'max_users' => null, 'sort_order' => 3],
+        ] as $plan) {
+            SubscriptionPlan::updateOrCreate(['slug' => $plan['slug']], $plan + ['is_active' => true]);
+        }
     }
 }
