@@ -35,6 +35,18 @@ use Illuminate\Support\Facades\Route;
 // it on install.
 Route::view('/offline', 'offline')->name('offline');
 
+// The bare domain root has no page of its own — bounce a guest to /login
+// and an authenticated user to wherever they'd land after logging in
+// anyway (mirrors bootstrap/app.php's redirectUsersTo), so visiting just
+// "/" always goes somewhere useful instead of a 404.
+Route::get('/', function () {
+    if (! auth()->check()) {
+        return redirect()->route('login');
+    }
+
+    return redirect(auth()->user()->isPlatformAdmin() ? route('platform.companies') : route('pos.terminal'));
+})->name('home');
+
 // Merge this group into your project's existing routes/web.php.
 Route::middleware('guest')->group(function () {
     // Named 'login' — Laravel's default auth middleware redirects
