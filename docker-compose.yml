@@ -1,0 +1,78 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: poskasir-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      VIRTUAL_HOST: www.mbayar.my.id
+      VIRTUAL_PORT: "80"
+      LETSENCRYPT_HOST: www.mbayar.my.id
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
+    volumes:
+      - storage_data:/var/www/html/storage
+    depends_on:
+      - db
+    networks:
+      - poskasir
+      - proxy
+
+  db:
+    image: mysql:8.0
+    container_name: poskasir-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - poskasir
+
+  # Reverse proxy + terbitan sertifikat SSL otomatis (Let's Encrypt) untuk
+  # domain di VIRTUAL_HOST/LETSENCRYPT_HOST milik service `app` di atas.
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy:alpine
+    container_name: nginx-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - proxy_certs:/etc/nginx/certs
+      - proxy_vhost:/etc/nginx/vhost.d
+      - proxy_html:/usr/share/nginx/html
+    networks:
+      - proxy
+
+  acme-companion:
+    image: nginxproxy/acme-companion
+    container_name: nginx-proxy-acme
+    restart: unless-stopped
+    depends_on:
+      - nginx-proxy
+    volumes_from:
+      - nginx-proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - proxy_acme:/etc/acme.sh
+    networks:
+      - proxy
+
+volumes:
+  db_data:
+  storage_data:
+  proxy_certs:
+  proxy_vhost:
+  proxy_html:
+  proxy_acme:
+
+networks:
+  poskasir:
+  proxy:

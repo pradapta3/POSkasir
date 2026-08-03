@@ -188,6 +188,11 @@ Ini alur yang akan dipakai pelanggan sungguhan saat mendaftar:
   pembelian) dipisah ke `app/Services/`, bukan ditulis langsung di
   komponen Livewire.
 
+## Deploy ke VPS (Docker)
+
+Untuk hosting produksi di VPS (Ubuntu + Docker, lengkap dengan SSL
+otomatis), ikuti langkah demi langkah di [`DEPLOY.md`](DEPLOY.md).
+
 ## Kontribusi & Lisensi
 
 Proyek internal — belum ada panduan kontribusi publik. Dibangun di atas
