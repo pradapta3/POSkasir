@@ -8,6 +8,7 @@ use App\Models\PurchaseOrder;
 use App\Models\User;
 use App\Services\Inventory\StockAdjustmentService;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 /**
  * Records stock arriving from a supplier: writes the PurchaseOrder header
@@ -25,6 +26,8 @@ class PurchasingService
 
     /**
      * @param  array<int, array{product_id: int, quantity: int, unit_cost: float}>  $items
+     *
+     * @throws RuntimeException if any item's product_id isn't part of the acting company's own catalog.
      */
     public function receive(
         int $outletId,
@@ -34,7 +37,20 @@ class PurchasingService
         ?string $notes = null,
     ): PurchaseOrder {
         return DB::transaction(function () use ($outletId, $supplierId, $items, $actor, $notes) {
+            // Product::whereIn() is scoped to the acting company via
+            // CompanyScope — $items is a Livewire component property (client
+            // controlled), so a product_id belonging to another company (or
+            // a bogus one) simply won't be found here. Rejecting the whole
+            // purchase instead of silently skipping the item, since a
+            // merchant seeing a purchase total that doesn't match what they
+            // entered would be its own kind of bug.
             $products = Product::whereIn('id', array_column($items, 'product_id'))->get()->keyBy('id');
+
+            foreach ($items as $item) {
+                if (! $products->has($item['product_id'])) {
+                    throw new RuntimeException('Salah satu produk pada pembelian ini tidak ditemukan di toko kamu.');
+                }
+            }
 
             $purchaseOrder = PurchaseOrder::create([
                 'outlet_id' => $outletId,
@@ -48,21 +64,23 @@ class PurchasingService
             $total = 0;
 
             foreach ($items as $item) {
+                // Guaranteed present — every item's product_id was checked
+                // against $products above before this loop ever runs.
                 $product = $products->get($item['product_id']);
                 $subtotal = $item['quantity'] * $item['unit_cost'];
                 $total += $subtotal;
 
                 $purchaseOrder->items()->create([
-                    'product_id' => $product?->id,
-                    'product_name' => $product?->name ?? 'Produk tidak dikenal',
-                    'product_sku' => $product?->sku ?? '-',
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'product_sku' => $product->sku,
                     'quantity' => $item['quantity'],
                     'unit_cost' => $item['unit_cost'],
                     'subtotal' => $subtotal,
                 ]);
 
                 $this->stock->adjust(
-                    productId: $item['product_id'],
+                    productId: $product->id,
                     outletId: $outletId,
                     delta: $item['quantity'],
                     type: StockMovementType::IN,
@@ -71,7 +89,7 @@ class PurchasingService
                     reference: $purchaseOrder,
                 );
 
-                $product?->update(['cost_price' => $item['unit_cost']]);
+                $product->update(['cost_price' => $item['unit_cost']]);
             }
 
             $purchaseOrder->update(['total_amount' => $total]);

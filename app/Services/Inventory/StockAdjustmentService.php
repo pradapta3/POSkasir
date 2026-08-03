@@ -8,6 +8,7 @@ use App\Models\StockMovement;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 /**
  * The single place that mutates ProductStock::quantity and logs a
@@ -43,6 +44,15 @@ class StockAdjustmentService
 
             $before = $stock?->quantity ?? 0;
             $after = $before + $delta;
+
+            // The authoritative floor check — runs under the row lock above,
+            // so it's what actually protects against negative stock, not
+            // any pre-check a caller does beforehand (those only exist for
+            // a friendlier error message; two concurrent requests racing
+            // for the last unit only get caught here).
+            if ($after < 0) {
+                throw new RuntimeException('Stok tidak mencukupi untuk operasi ini.');
+            }
 
             if ($stock) {
                 $stock->update(['quantity' => $after]);

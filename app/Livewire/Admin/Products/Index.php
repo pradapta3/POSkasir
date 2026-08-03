@@ -18,6 +18,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
+use RuntimeException;
 
 #[Layout('layouts.pos')]
 class Index extends Component
@@ -268,14 +269,24 @@ class Index extends Component
             return;
         }
 
-        $stock->adjust(
-            productId: $this->stockProductId,
-            outletId: $this->stockOutletId,
-            delta: $this->stockDelta,
-            type: StockMovementType::ADJUSTMENT,
-            actor: Auth::user(),
-            notes: $this->stockNotes ?: null,
-        );
+        try {
+            $stock->adjust(
+                productId: $this->stockProductId,
+                outletId: $this->stockOutletId,
+                delta: $this->stockDelta,
+                type: StockMovementType::ADJUSTMENT,
+                actor: Auth::user(),
+                notes: $this->stockNotes ?: null,
+            );
+        } catch (RuntimeException $e) {
+            // The pre-check above already covers the common case; this only
+            // fires if stock changed between that read and this write (e.g.
+            // a sale on another terminal), caught by the row lock inside
+            // StockAdjustmentService itself.
+            $this->addError('stockDelta', $e->getMessage());
+
+            return;
+        }
 
         $this->showStockModal = false;
         unset($this->products);

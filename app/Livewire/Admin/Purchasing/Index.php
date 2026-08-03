@@ -17,6 +17,7 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithPagination;
+use RuntimeException;
 
 /**
  * "Pembelian" — recording stock arriving from a supplier. Every receipt
@@ -174,13 +175,19 @@ class Index extends Component
             }
         }
 
-        $purchasing->receive(
-            outletId: $this->outletId,
-            supplierId: $this->supplierId,
-            items: array_values($this->items),
-            actor: Auth::user(),
-            notes: $this->notes ?: null,
-        );
+        try {
+            $purchasing->receive(
+                outletId: $this->outletId,
+                supplierId: $this->supplierId,
+                items: array_values($this->items),
+                actor: Auth::user(),
+                notes: $this->notes ?: null,
+            );
+        } catch (RuntimeException $e) {
+            $this->addError('items', $e->getMessage());
+
+            return;
+        }
 
         $this->showFormModal = false;
         $this->resetForm();

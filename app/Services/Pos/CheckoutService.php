@@ -10,6 +10,7 @@ use App\Enums\StockMovementType;
 use App\Enums\TransactionStatus;
 use App\Events\TransactionCheckedOut;
 use App\Models\Customer;
+use App\Models\Product;
 use App\Models\Setting;
 use App\Models\Shift;
 use App\Models\Transaction;
@@ -74,6 +75,8 @@ class CheckoutService
             $taxPercentage, $amountPaid, $customerName, $customerPhone, $customerId,
             $redeemPoints, $enrollAsMember, $resumeTransactionId,
         ) {
+            $cart = $this->verifyCart($cart, $shift->outlet_id);
+
             $customer = $customerId
                 ? Customer::findOrFail($customerId)
                 : $this->resolveCustomer($customerName, $customerPhone, $enrollAsMember);
@@ -199,6 +202,8 @@ class CheckoutService
         }
 
         return DB::transaction(function () use ($cart, $cashier, $shift, $notes) {
+            $cart = $this->verifyCart($cart, $shift->outlet_id);
+
             $totals = $this->calculator->totals($cart, null, 0, 0);
 
             $transaction = Transaction::create([
@@ -229,6 +234,65 @@ class CheckoutService
 
             return $transaction->load('items');
         });
+    }
+
+    /**
+     * Re-fetches every cart line's product from the database and rebuilds
+     * the cart from the server's own name/price/cost_price — $cart is a
+     * Livewire component property, which means the client controls
+     * whatever's in it, so nothing in the incoming array (least of all
+     * price) can be trusted to move money or stock without this check
+     * first. Product::active() is already scoped to the cashier's company
+     * via CompanyScope, so a foreign, deleted, or deactivated product_id
+     * simply won't be found here and fails the whole checkout instead of
+     * silently being dropped or trusted.
+     *
+     * @param  array<string, array{product_id:int,quantity:int}>  $cart
+     * @return array<string, array{product_id:int,name:string,sku:string,price:float,cost_price:float,quantity:int}>
+     *
+     * @throws RuntimeException if a line's product can't be found or asks for more than is in stock.
+     */
+    private function verifyCart(array $cart, int $outletId): array
+    {
+        $products = Product::active()
+            ->whereIn('id', array_column($cart, 'product_id'))
+            ->get()
+            ->keyBy('id');
+
+        $verified = [];
+
+        foreach ($cart as $key => $line) {
+            $product = $products->get($line['product_id']);
+
+            if (! $product) {
+                throw new RuntimeException('Salah satu produk di keranjang sudah tidak tersedia. Muat ulang keranjang.');
+            }
+
+            $quantity = (int) $line['quantity'];
+
+            if ($quantity < 1) {
+                throw new RuntimeException('Jumlah produk di keranjang tidak valid.');
+            }
+
+            // Only a friendlier message than the negative-stock guard in
+            // StockAdjustmentService — that guard (checked under a row
+            // lock) is what actually protects against a concurrent sale of
+            // the same last unit; this plain read can't.
+            if ($quantity > $product->quantityAt($outletId)) {
+                throw new RuntimeException("Stok {$product->name} tidak mencukupi.");
+            }
+
+            $verified[$key] = [
+                'product_id' => $product->id,
+                'name' => $product->name,
+                'sku' => $product->sku,
+                'price' => (float) $product->selling_price,
+                'cost_price' => (float) $product->cost_price,
+                'quantity' => $quantity,
+            ];
+        }
+
+        return $verified;
     }
 
     /**
