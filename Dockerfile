@@ -1,14 +1,6 @@
 # syntax=docker/dockerfile:1
 
-# ---- 1. Dependency PHP (composer) ----
-FROM composer:2 AS vendor
-WORKDIR /app
-COPY composer.json composer.lock ./
-RUN composer install \
-    --no-dev --no-scripts --no-interaction --no-progress \
-    --prefer-dist --optimize-autoloader
-
-# ---- 2. Aset front-end (Vite/Tailwind) ----
+# ---- 1. Aset front-end (Vite/Tailwind) ----
 FROM node:20-alpine AS frontend
 WORKDIR /app
 COPY package.json ./
@@ -18,7 +10,7 @@ COPY resources ./resources
 COPY public ./public
 RUN npm run build
 
-# ---- 3. Image aplikasi (PHP-FPM + Nginx + Supervisor) ----
+# ---- 2. Image aplikasi (PHP-FPM + Nginx + Supervisor) ----
 FROM php:8.3-fpm-alpine AS app
 
 RUN apk add --no-cache nginx supervisor bash mysql-client tzdata \
@@ -31,11 +23,24 @@ RUN apk add --no-cache nginx supervisor bash mysql-client tzdata \
     && apk add --no-cache libpng libjpeg-turbo freetype libzip icu oniguruma \
     && apk del --no-cache .build-deps
 
+# Composer dijalankan di image ini juga (bukan di image `composer:2`
+# terpisah) supaya ekstensi PHP yang diperiksa composer — ext-gd, ext-zip,
+# ext-intl, dst — persis sama dengan yang tersedia saat aplikasi berjalan.
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
 WORKDIR /var/www/html
 
+COPY composer.json composer.lock ./
+RUN composer install \
+    --no-dev --no-scripts --no-interaction --no-progress \
+    --prefer-dist --optimize-autoloader
+
 COPY . .
-COPY --from=vendor /app/vendor ./vendor
 COPY --from=frontend /app/public/build ./public/build
+
+# Autoloader di atas dibuat saat app/ dan database/ belum ada, jadi
+# classmap-nya masih kosong — dibangun ulang setelah kode lengkap tersalin.
+RUN composer dump-autoload --no-dev --no-scripts --optimize
 
 COPY docker/php.ini /usr/local/etc/php/conf.d/99-poskasir.ini
 COPY docker/nginx.conf /etc/nginx/http.d/default.conf
