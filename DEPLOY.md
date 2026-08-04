@@ -154,20 +154,28 @@ Simpan file (`Ctrl+O`, `Enter`, `Ctrl+X` di nano).
 
 ### Generate `APP_KEY`
 
-Build dulu image aplikasinya (tanpa menjalankan), lalu minta artisan
-mencetak key baru:
+`APP_KEY` adalah kunci enkripsi aplikasi — tidak ikut di repo (karena
+`.env` sengaja di-gitignore), jadi harus dibuat sendiri di server. Isinya
+cuma 32 byte acak dalam base64, persis yang dihasilkan
+`php artisan key:generate`:
 
 ```bash
-docker compose build app
-docker compose run --rm app php artisan key:generate --show
+sed -i "s|^APP_KEY=.*|APP_KEY=base64:$(openssl rand -base64 32)|" .env
+grep APP_KEY .env
 ```
 
-Salin output-nya (format `base64:xxxxxxxx...`), lalu tempel ke `.env`:
+Baris `APP_KEY=base64:...` sekarang sudah terisi di `.env`.
 
-```bash
-nano .env
-# isi: APP_KEY=base64:xxxxxxxx...
-```
+> Kalau ingin memakai artisan, jalankan dengan `--no-deps --entrypoint`
+> supaya entrypoint (yang menunggu database + migrasi) tidak ikut jalan —
+> di titik ini database memang belum siap:
+>
+> ```bash
+> docker compose build app
+> docker compose run --rm --no-deps --entrypoint php app artisan key:generate --show
+> ```
+>
+> lalu tempel hasilnya ke `.env` secara manual.
 
 ---
 
