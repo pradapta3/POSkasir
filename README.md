@@ -188,6 +188,16 @@ Ini alur yang akan dipakai pelanggan sungguhan saat mendaftar:
   pembelian) dipisah ke `app/Services/`, bukan ditulis langsung di
   komponen Livewire.
 
+## Deploy ke Produksi
+
+Dua panduan lengkap, dari VPS kosong (Ubuntu 24.04 LTS) sampai aplikasi
+bisa diakses lewat domain sendiri dengan HTTPS:
+
+- [DEPLOYMENT.md](DEPLOYMENT.md) — install PHP/MySQL/Nginx langsung di
+  server, plus script otomatis di [`deploy/`](deploy/).
+- [DOCKER.md](DOCKER.md) — jalankan semuanya lewat Docker Compose, lebih
+  sedikit yang perlu diinstal manual di server.
+
 ## Kontribusi & Lisensi
 
 Proyek internal — belum ada panduan kontribusi publik. Dibangun di atas
