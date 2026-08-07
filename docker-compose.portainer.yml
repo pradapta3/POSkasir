@@ -1,0 +1,28 @@
+# GUI opsional untuk mengelola container lewat browser.
+#
+# Jalankan bersama compose utama:
+#   docker compose -f docker-compose.yml -f docker-compose.portainer.yml up -d
+#
+# Butuh DNS A record `panel.mbayar.my.id` -> IP VPS supaya SSL otomatis
+# terbit. Lihat bagian "Mengelola lewat GUI" di DEPLOY.md.
+services:
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    environment:
+      VIRTUAL_HOST: panel.mbayar.my.id
+      VIRTUAL_PORT: "9000"
+      LETSENCRYPT_HOST: panel.mbayar.my.id
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
+    volumes:
+      # Akses penuh ke Docker daemon — setara akses root di VPS. Karena itu
+      # Portainer wajib dilindungi password kuat, dan jangan pernah
+      # dipublikasikan tanpa HTTPS.
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    networks:
+      - proxy
+
+volumes:
+  portainer_data:
