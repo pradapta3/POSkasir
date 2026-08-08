@@ -2,7 +2,13 @@
     $rp = fn ($n) => 'Rp '.number_format((float) $n, 0, ',', '.');
 @endphp
 
-<div class="flex h-screen flex-col bg-slate-50">
+{{--
+    Tata letak dua kolom (produk | keranjang) hanya dipakai mulai lebar lg.
+    Di bawah itu keranjang jadi panel yang naik dari bawah lewat `cartOpen`,
+    karena memaksa dua kolom di layar HP membuat lebar minimum halaman
+    melebihi lebar layar — browser lalu men-zoom-out seluruh tampilan.
+--}}
+<div x-data="{ cartOpen: false }" class="flex h-screen flex-col bg-slate-50">
     {{-- Toast --}}
     <div
         x-data="{ show: false, message: '', receiptUrl: null }"
@@ -17,7 +23,7 @@
         x-show="show"
         x-transition
         style="display: none;"
-        class="fixed top-4 right-4 z-50 flex items-center gap-3 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-medium text-white shadow-lg shadow-emerald-600/20"
+        class="fixed inset-x-4 top-4 z-50 flex items-center gap-3 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-medium text-white shadow-lg shadow-emerald-600/20 sm:left-auto sm:right-4 sm:max-w-sm"
     >
         <x-icon name="check-circle" class="h-5 w-5 shrink-0" />
         <span x-text="message"></span>
@@ -32,32 +38,34 @@
     </div>
 
     {{-- Header --}}
-    <header class="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3">
-        <div class="flex items-center gap-3">
-            <div class="flex items-center gap-2">
+    <header class="flex items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 py-2 sm:px-6 sm:py-3">
+        <div class="flex min-w-0 items-center gap-2 sm:gap-3">
+            <div class="flex shrink-0 items-center gap-2">
                 <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-600 text-sm font-bold text-white">P</span>
-                <span class="text-lg font-bold text-slate-900">POS Kasir</span>
+                <span class="hidden text-lg font-bold text-slate-900 sm:inline">POS Kasir</span>
             </div>
             @if ($this->currentOutlet)
-                <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                <span class="max-w-[7rem] truncate rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 sm:max-w-none">
                     {{ $this->currentOutlet->name }}
                 </span>
             @endif
             <livewire:partials.outlet-switcher />
+            {{-- Status shift disembunyikan di layar sempit: informatif, tapi
+                 bukan yang dibutuhkan kasir saat melayani antrean. --}}
             @if ($this->activeShift)
-                <span class="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                <span class="hidden items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700 xl:flex">
                     <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
                     Shift dibuka &middot; {{ $this->activeShift->opened_at->diffForHumans() }}
                 </span>
             @endif
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex shrink-0 items-center gap-2 sm:gap-3">
             @if ($this->activeShift)
                 <button
                     wire:click="$set('showCloseShiftModal', true)"
-                    class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    class="shrink-0 rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:px-3"
                 >
-                    Tutup Shift
+                    Tutup<span class="hidden sm:inline"> Shift</span>
                 </button>
             @endif
             @include('partials.admin-nav')
@@ -66,15 +74,15 @@
 
     <div class="flex flex-1 overflow-hidden">
         {{-- Product browser --}}
-        <section class="flex w-2/3 flex-col overflow-hidden border-r border-slate-200 bg-slate-50">
-            <div class="border-b border-slate-200 bg-white p-4">
+        <section class="flex w-full flex-col overflow-hidden border-slate-200 bg-slate-50 lg:w-2/3 lg:border-r">
+            <div class="border-b border-slate-200 bg-white p-3 sm:p-4">
                 <div class="relative">
                     <x-icon name="search" class="pointer-events-none absolute inset-y-0 left-3 my-auto h-5 w-5 text-slate-400" />
                     <input
                         type="text"
                         wire:model.live.debounce.300ms="search"
                         wire:keydown.enter.prevent="scanBarcode"
-                        placeholder="Pindai barcode atau cari nama produk / SKU..."
+                        placeholder="Pindai barcode atau cari produk..."
                         autofocus
                         class="w-full rounded-lg border-slate-300 py-2.5 pl-10 text-base shadow-sm focus:border-rose-500 focus:ring-rose-500"
                     >
@@ -101,7 +109,16 @@
                 </div>
             </div>
 
-            <div class="grid flex-1 grid-cols-4 gap-3 overflow-y-auto p-4 content-start">
+            {{--
+                auto-rows-min wajib ada. Tanpanya, baris `auto` di dalam grid
+                yang tingginya sudah pasti (flex-1) plus content-start menyusut
+                jauh di bawah tinggi isinya — kartu produk terpotong jadi ~34px
+                dan gambarnya nyaris tak terlihat.
+
+                pb ekstra di layar sempit supaya baris terakhir tidak tertutup
+                bilah keranjang yang menempel di bawah layar.
+            --}}
+            <div class="grid flex-1 auto-rows-min grid-cols-2 content-start gap-2.5 overflow-y-auto p-3 pb-24 sm:grid-cols-3 sm:gap-3 sm:p-4 lg:grid-cols-4 lg:pb-4">
                 @forelse ($this->productList as $product)
                     @php $stock = $product->productStocks->first(); @endphp
                     <button
@@ -110,7 +127,11 @@
                         @if (! $stock || $stock->quantity <= 0) disabled @endif
                         class="group flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-rose-300 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
                     >
-                        <div class="aspect-square w-full overflow-hidden bg-slate-100">
+                        {{-- shrink-0 wajib: sebagai flex item di kartu ber-flex-col,
+                             kotak ini disusutkan sampai tinggi 0 oleh flex-shrink
+                             bawaan, sehingga aspect-square tidak pernah terpakai
+                             dan gambar produk tidak pernah terlihat. --}}
+                        <div class="aspect-square w-full shrink-0 overflow-hidden bg-slate-100">
                             @if ($product->image_url)
                                 <img src="{{ $product->image_url }}" alt="{{ $product->name }}" class="h-full w-full object-cover" loading="lazy">
                             @else
@@ -129,7 +150,7 @@
                         </div>
                     </button>
                 @empty
-                    <div class="col-span-4 flex flex-col items-center justify-center py-16 text-center">
+                    <div class="col-span-full flex flex-col items-center justify-center py-16 text-center">
                         <x-icon name="cube" class="h-10 w-10 text-slate-300" />
                         <p class="mt-2 text-sm text-slate-400">Produk tidak ditemukan.</p>
                     </div>
@@ -138,7 +159,23 @@
         </section>
 
         {{-- Cart --}}
-        <section class="flex w-1/3 flex-col bg-white">
+        <section
+            :class="cartOpen ? 'translate-y-0' : 'translate-y-full'"
+            class="fixed inset-0 z-40 flex flex-col bg-white transition-transform duration-300 lg:static lg:w-1/3 lg:translate-y-0 lg:transition-none"
+        >
+            {{-- Judul + tombol tutup hanya untuk mode panel di layar sempit --}}
+            <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3 lg:hidden">
+                <h2 class="text-base font-bold text-slate-900">Keranjang</h2>
+                <button
+                    type="button"
+                    @click="cartOpen = false"
+                    aria-label="Tutup keranjang"
+                    class="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
+                >
+                    <x-icon name="x-mark" class="h-5 w-5" />
+                </button>
+            </div>
+
             @if ($resumingTransactionId)
                 <div class="flex items-center justify-between bg-amber-50 px-4 py-2 text-sm text-amber-800">
                     <span>Melanjutkan pesanan tertahan #{{ $resumingTransactionId }}</span>
@@ -262,10 +299,33 @@
         </section>
     </div>
 
+    {{-- Bilah keranjang untuk layar sempit — pengganti kolom keranjang yang
+         di sini disembunyikan. Menampilkan ringkasan supaya kasir tetap tahu
+         isi keranjang tanpa harus membuka panelnya. --}}
+    <div
+        x-show="!cartOpen"
+        x-cloak
+        class="fixed inset-x-0 bottom-0 z-30 flex items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-3 shadow-[0_-4px_12px_rgba(15,23,42,0.08)] lg:hidden"
+    >
+        <div class="min-w-0">
+            <p class="text-xs text-slate-500">
+                {{ count($cart) }} item{{ count($cart) > 0 ? ' di keranjang' : '' }}
+            </p>
+            <p class="truncate text-lg font-bold text-slate-900">{{ $rp($this->totals['grandTotal']) }}</p>
+        </div>
+        <button
+            type="button"
+            @click="cartOpen = true"
+            class="shrink-0 rounded-lg bg-rose-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-rose-600/25 hover:bg-rose-700"
+        >
+            Lihat Keranjang
+        </button>
+    </div>
+
     {{-- Payment modal --}}
     @if ($showPaymentModal)
         <div class="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
-            <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <div class="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 shadow-xl sm:p-6">
                 <h2 class="text-lg font-bold text-slate-900">Pembayaran</h2>
 
                 @error('checkout')
@@ -289,7 +349,7 @@
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                         @enderror
 
-                        <div class="mt-2 grid grid-cols-4 gap-2">
+                        <div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
                             @foreach ($this->cashSuggestions as $suggestion)
                                 <button
                                     type="button"
@@ -383,7 +443,7 @@
     {{-- Held orders modal --}}
     @if ($showHeldOrders)
         <div class="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-4">
-            <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+            <div class="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-5 shadow-xl sm:p-6">
                 <div class="flex items-center justify-between">
                     <h2 class="text-lg font-bold text-slate-900">Pesanan Tertahan</h2>
                     <button wire:click="$set('showHeldOrders', false)" class="text-slate-400 hover:text-slate-600">&times;</button>
@@ -416,7 +476,7 @@
     {{-- Open shift modal (blocking) --}}
     @if ($showOpenShiftModal)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4">
-            <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <div class="max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-2xl bg-white p-5 shadow-xl sm:p-6">
                 <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100">
                     <x-icon name="wallet" class="h-6 w-6 text-rose-600" />
                 </div>
@@ -439,7 +499,7 @@
     {{-- Close shift modal --}}
     @if ($showCloseShiftModal)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-4">
-            <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <div class="max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-2xl bg-white p-5 shadow-xl sm:p-6">
                 <h2 class="text-lg font-bold text-slate-900">Tutup Shift</h2>
                 <p class="mt-1 text-sm text-slate-500">Hitung uang di laci dan masukkan jumlah kas aktual.</p>
 
