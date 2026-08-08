@@ -154,6 +154,30 @@ Ini alur yang akan dipakai pelanggan sungguhan saat mendaftar:
    secara lokal, buka file log itu dan cari link verifikasinya. Akun
    tetap bisa dipakai sebelum verifikasi — hanya muncul banner pengingat.
 
+## Data Contoh untuk Demo
+
+Untuk mencoba aplikasi dengan katalog yang terisi — 55 produk bergaya
+supermarket Indonesia (sembako, minuman, makanan ringan, bumbu, dll)
+lengkap dengan harga, barcode EAN-13 yang valid, stok awal, dan gambar
+produk:
+
+```bash
+php artisan db:seed --class=DummyProductSeeder
+```
+
+Gambar produknya dibangkitkan sendiri sebagai SVG, jadi tidak perlu akses
+internet. Seeder ini aman dijalankan berulang (produk dicocokkan lewat
+SKU) dan sengaja tidak ikut dijalankan oleh `db:seed` biasa, supaya data
+contoh tidak pernah masuk ke instalasi produksi tanpa diminta.
+
+Semua produknya berawalan SKU `DMY-`, jadi mudah dihapus kalau sudah tidak
+diperlukan:
+
+```bash
+php artisan tinker
+>>> App\Models\Product::where('sku', 'like', 'DMY-%')->forceDelete();
+```
+
 ## Konfigurasi Opsional
 
 - **QRIS statis** — Superadmin toko upload gambar QRIS lewat
