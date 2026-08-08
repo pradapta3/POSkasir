@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>POS Kasir</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            min-height: 100vh;
+            align-items: center;
+            justify-content: center;
+            background: #f1f5f9;
+            color: #334155;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            text-align: center;
+        }
+        .kotak { max-width: 22rem; padding: 2rem; }
+        h1 { margin: 0 0 .5rem; font-size: 1.15rem; color: #0f172a; }
+        p { margin: 0; font-size: .9rem; line-height: 1.5; }
+    </style>
+</head>
+<body>
+    <!--
+        Halaman ini praktis tidak pernah tampil: capacitor.config.json
+        mengarahkan WebView ke server (server.url), jadi isi folder www/
+        dilewati. Tetap disediakan karena Capacitor mewajibkan webDir ada,
+        dan supaya layar tidak kosong kalau konfigurasi server dilepas.
+    -->
+    <div class="kotak">
+        <h1>Tidak dapat terhubung ke server</h1>
+        <p>Periksa koneksi internet perangkat ini, lalu buka ulang aplikasi.</p>
+    </div>
+</body>
+</html>

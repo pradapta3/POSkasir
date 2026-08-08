@@ -1,0 +1,12 @@
+{
+    "appId": "id.my.mbayar.poskasir",
+    "appName": "POS Kasir",
+    "webDir": "www",
+    "server": {
+        "url": "https://www.mbayar.my.id",
+        "cleartext": false
+    },
+    "android": {
+        "allowMixedContent": false
+    }
+}

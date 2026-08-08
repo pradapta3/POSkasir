@@ -29,3 +29,6 @@ storage/logs/*
 docker-compose*.yml
 Dockerfile
 .dockerignore
+
+# Proyek Android (Capacitor) — dibangun terpisah, tidak dipakai server web.
+mobile

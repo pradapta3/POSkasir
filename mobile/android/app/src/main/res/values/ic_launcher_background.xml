@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Merah rose milik POS Kasir, sama dengan theme_color di manifest.json
+         aplikasi web, supaya ikon di launcher senada dengan tampilan aplikasi. -->
+    <color name="ic_launcher_background">#E11D48</color>
+</resources>

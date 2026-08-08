@@ -1,0 +1,11 @@
+node_modules/
+
+# Disalin dari www/ oleh `npx cap sync` — bukan sumber kebenaran.
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+
+# Dibangkitkan ulang oleh `npx cap sync` setiap kali daftar plugin berubah.
+android/capacitor-cordova-android-plugins/
+android/app/capacitor.build.gradle
+android/capacitor.settings.gradle
