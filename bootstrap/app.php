@@ -11,6 +11,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Di belakang reverse proxy (nginx-proxy, Cloudflare, load balancer)
+        // TLS diterminasi di proxy, jadi request yang sampai ke aplikasi
+        // berupa HTTP biasa. Tanpa ini Laravel membangun URL aset dengan
+        // skema http:// di halaman yang dibuka lewat https://, dan browser
+        // memblokirnya sebagai mixed content — CSS/JS tidak pernah termuat.
+        // Aman mempercayai semua proxy karena container aplikasi tidak
+        // mempublikasikan port ke internet; hanya proxy yang bisa mencapainya.
+        $middleware->trustProxies(at: '*');
+
         $middleware->redirectUsersTo(function ($request) {
             return $request->user()?->isPlatformAdmin()
                 ? route('platform.companies')
